@@ -1,27 +1,23 @@
 const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
-
 const app = express()
-const port = process.env.PORT || 5000;
+const cors = require('cors');
+const port = process.env.PORT || 3000;
 
 
 // middleware
-app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5173'],
-  credentials: true,
-
+  origin: [
+    'http://localhost:5173',
+  ],
+  credentials: true
 }));
+app.use(express.json())
 
 
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.7nwjyzo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const { MongoClient, ServerApiVersion } = require('mongodb');
+const uri = "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-const uri = "mongodb+srv://superBox:PoxtReXgWxG4Uxoj@cluster0.7nwjyzo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -34,17 +30,17 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
 
 
-    const userCollection = client.db("superBoxDB").collection("users");
+    const userCollection = client.db("SuperBox").collection("users")
 
 
-    // user related api
+    // user related api===================================================================
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       console.log(user);
+
       // insert email if user doesn't exist
       const query = { email: user?.email };
       const existingUser = await userCollection.findOne(query);
@@ -52,7 +48,32 @@ async function run() {
         return res.send({ message: 'User already exists', insertedId: null })
       }
       const result = await userCollection.insertOne(user);
+      res.send("helo");
+    });
+
+    app.get('/users', async (req, res) => {
+      const result = await userCollection.find().toArray();
       res.send(result);
+    });
+
+
+    // role define =========================================================
+    app.get('/users/role/:email',  async (req, res) => {
+      const email = req.params.email;
+     console.log(email)
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      if (user.role === "admin") {
+        return res.send({ role: 'admin' });
+      }
+      if (user.role === "seller") {
+        return res.send({ role: 'seller' });
+      }
+      return res.send({ role: "user" });
     });
 
 
