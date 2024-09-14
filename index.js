@@ -35,7 +35,8 @@ async function run() {
     const userCollection = client.db("SuperBox").collection("users")
 
 
-    // user related api
+    // user related api===================================================================
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       console.log(user);
@@ -49,13 +50,30 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send("helo");
     });
+
     app.get('/users', async (req, res) => {
-
-
-
-
       const result = await userCollection.find().toArray();
       res.send(result);
+    });
+
+
+    // role define =========================================================
+    app.get('/users/role/:email',  async (req, res) => {
+      const email = req.params.email;
+     console.log(email)
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      if (user.role === "admin") {
+        return res.send({ role: 'admin' });
+      }
+      if (user.role === "seller") {
+        return res.send({ role: 'seller' });
+      }
+      return res.send({ role: "user" });
     });
 
 
