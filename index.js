@@ -33,6 +33,7 @@ async function run() {
 
 
     const userCollection = client.db("SuperBox").collection("users")
+    const webCollection = client.db("SuperBox").collection("websites")
 
 
     // user related api===================================================================
@@ -58,9 +59,9 @@ async function run() {
 
 
     // role define =========================================================
-    app.get('/users/role/:email',  async (req, res) => {
+    app.get('/users/role/:email', async (req, res) => {
       const email = req.params.email;
-     console.log(email)
+      console.log(email)
       const query = { email: email };
       const user = await userCollection.findOne(query);
 
@@ -76,6 +77,29 @@ async function run() {
       return res.send({ role: "user" });
     });
 
+
+    // website related api 
+
+    app.post("/createWebsite", async (req, res) => {
+      const webData = req.body
+      const newSellerEmail = req.body.email
+      const query = { email: newSellerEmail };
+      const user = await userCollection.findOne(query);
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      const update = {
+        $set: {
+          role: "seller", // Update the role field to 'seller'
+        },
+      };
+      const updateRole = await userCollection.updateOne(query, update);
+      const result = await webCollection.insertOne(webData)
+      console.log(webData)
+      res.send({updateRole, result})
+
+    })
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
