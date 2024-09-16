@@ -97,8 +97,20 @@ async function run() {
       const updateRole = await userCollection.updateOne(query, update);
       const result = await webCollection.insertOne(webData)
       console.log(webData)
-      res.send({updateRole, result})
+      res.send({ updateRole, result })
+    })
 
+    app.get("/webData/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
+      const result = await webCollection.findOne(query)
+      res.send(result)
+    })
+    app.get("/w/:name", async (req, res) => {
+      const name = req.params.name;
+      const query = { "webInfo.shopName": name }
+      const result = await webCollection.findOne(query)
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
