@@ -34,6 +34,7 @@ async function run() {
 
     const userCollection = client.db("SuperBox").collection("users")
     const webCollection = client.db("SuperBox").collection("websites")
+    const productsCollection = client.db("SuperBox").collection("products")
 
 
     // user related api===================================================================
@@ -108,8 +109,23 @@ async function run() {
     })
     app.get("/w/:name", async (req, res) => {
       const name = req.params.name;
+      console.log(name)
       const query = { "webInfo.shopName": name }
       const result = await webCollection.findOne(query)
+      res.send(result)
+    })
+
+    // products related api 
+    app.get("/products/:email", async (req, res) => {
+      const email = res.params 
+      const query = {email : email}
+      const result = await productsCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.get("/products/:name", async (req, res) => {
+      const email = res.params 
+      const query = {shopName : email}
+      const result = await productsCollection.find(query).toArray()
       res.send(result)
     })
 
