@@ -35,13 +35,14 @@ async function run() {
     const userCollection = client.db("SuperBox").collection("users")
     const webCollection = client.db("SuperBox").collection("websites")
     const productsCollection = client.db("SuperBox").collection("products")
+    const customerCollection = client.db("SuperBox").collection("customers")
 
 
     // user related api===================================================================
 
     app.post('/users', async (req, res) => {
       const user = req.body;
-      console.log(user);
+ 
 
       // insert email if user doesn't exist
       const query = { email: user?.email };
@@ -62,7 +63,7 @@ async function run() {
     // role define =========================================================
     app.get('/users/role/:email', async (req, res) => {
       const email = req.params.email;
-      console.log(email)
+      
       const query = { email: email };
       const user = await userCollection.findOne(query);
 
@@ -109,7 +110,7 @@ async function run() {
     })
     app.get("/w/:name", async (req, res) => {
       const name = req.params.name;
-      console.log(name)
+
       const query = { "webInfo.shopName": name }
       const result = await webCollection.findOne(query)
       res.send(result)
@@ -122,12 +123,29 @@ async function run() {
       const result = await productsCollection.find(query).toArray()
       res.send(result)
     })
+
     app.get("/products/:name", async (req, res) => {
-      const email = res.params 
-      const query = {shopName : email}
+      const name = res.params 
+      console.log(name)
+      const query = {shopName : name}
       const result = await productsCollection.find(query).toArray()
       res.send(result)
     })
+
+    // customer related api ================================================
+    app.post('/customer', async (req, res) => {
+      const user = req.body;
+ 
+
+      // insert email if user doesn't exist
+      const query = { email: user?.email };
+      const existingUser = await customerCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: 'User already exists', insertedId: null })
+      }
+      const result = await customerCollection.insertOne(user);
+      res.send("helo");
+    });
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
