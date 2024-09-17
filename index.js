@@ -82,7 +82,7 @@ async function run() {
     });
 
 
-    // website related api 
+    // website related api ===========================================================
 
     app.post("/createWebsite", async (req, res) => {
       const webData = req.body
@@ -117,8 +117,20 @@ async function run() {
       const result = await webCollection.findOne(query)
       res.send(result)
     })
+    app.get("/sellerData", async (req, res) => {
 
-    // products related api 
+      const result = await webCollection.find().toArray()
+      res.send(result)
+
+    })
+    app.get("/customers", async (req, res) => {
+
+      const result = await customerCollection.find().toArray()
+      res.send(result)
+
+    })
+
+    // products related api============================================================== 
     app.get("/products/:email", async (req, res) => {
       const email = res.params
       const query = { email: email }
@@ -138,6 +150,10 @@ async function run() {
 
       const query = { _id: new ObjectId(id) }
       const result = await productsCollection.findOne(query)
+      res.send(result)
+    })
+    app.get("/products", async (req, res) => {
+      const result = await productsCollection.find().toArray()
       res.send(result)
     })
 
@@ -180,6 +196,9 @@ async function run() {
       const paymentResult = await paymentCollection.insertOne(payment);
       res.send(paymentResult);
     })
+
+
+
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
