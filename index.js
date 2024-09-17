@@ -2,6 +2,7 @@ const express = require('express');
 const app = express()
 const cors = require('cors');
 const port = process.env.PORT || 3000;
+const stripe = require('stripe')("sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh0hCJLRWvEQGtkOJNHlaSSu2AutCcs5lF0aeT5pz84ZRNvTXxHxX00pu62gD6j");
 
 
 // middleware
@@ -14,7 +15,7 @@ app.use(cors({
 app.use(express.json())
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 
@@ -36,13 +37,14 @@ async function run() {
     const webCollection = client.db("SuperBox").collection("websites")
     const productsCollection = client.db("SuperBox").collection("products")
     const customerCollection = client.db("SuperBox").collection("customers")
+    const paymentCollection = client.db("SuperBox").collection("payments")
 
 
     // user related api===================================================================
 
     app.post('/users', async (req, res) => {
       const user = req.body;
- 
+
 
       // insert email if user doesn't exist
       const query = { email: user?.email };
@@ -63,7 +65,7 @@ async function run() {
     // role define =========================================================
     app.get('/users/role/:email', async (req, res) => {
       const email = req.params.email;
-      
+
       const query = { email: email };
       const user = await userCollection.findOne(query);
 
@@ -80,7 +82,7 @@ async function run() {
     });
 
 
-    // website related api 
+    // website related api ===========================================================
 
     app.post("/createWebsite", async (req, res) => {
       const webData = req.body
@@ -115,27 +117,50 @@ async function run() {
       const result = await webCollection.findOne(query)
       res.send(result)
     })
+    app.get("/sellerData", async (req, res) => {
 
-    // products related api 
+      const result = await webCollection.find().toArray()
+      res.send(result)
+
+    })
+    app.get("/customers", async (req, res) => {
+
+      const result = await customerCollection.find().toArray()
+      res.send(result)
+
+    })
+
+    // products related api============================================================== 
     app.get("/products/:email", async (req, res) => {
-      const email = res.params 
-      const query = {email : email}
+      const email = res.params
+      const query = { email: email }
       const result = await productsCollection.find(query).toArray()
       res.send(result)
     })
 
     app.get("/products/:name", async (req, res) => {
-      const name = res.params 
-      console.log(name)
-      const query = {shopName : name}
+      const name = res.params
+
+      const query = { shopName: name }
       const result = await productsCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.get("/product/:id", async (req, res) => {
+      const id = req.params.id
+
+      const query = { _id: new ObjectId(id) }
+      const result = await productsCollection.findOne(query)
+      res.send(result)
+    })
+    app.get("/products", async (req, res) => {
+      const result = await productsCollection.find().toArray()
       res.send(result)
     })
 
     // customer related api ================================================
     app.post('/customer', async (req, res) => {
       const user = req.body;
- 
+
 
       // insert email if user doesn't exist
       const query = { email: user?.email };
@@ -146,6 +171,34 @@ async function run() {
       const result = await customerCollection.insertOne(user);
       res.send("helo");
     });
+
+
+
+
+    // payment related api =======================================================
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+
+    })
+
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+      res.send(paymentResult);
+    })
+
+
+
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
