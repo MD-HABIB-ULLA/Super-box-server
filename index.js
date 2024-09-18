@@ -9,6 +9,7 @@ const stripe = require('stripe')("sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh
 app.use(cors({
   origin: [
     'http://localhost:5173',
+    "https://super-box-d647e.web.app",
   ],
   credentials: true
 }));
