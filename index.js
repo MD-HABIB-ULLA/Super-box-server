@@ -16,7 +16,7 @@ app.use(cors({
 app.use(express.json())
 
 
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId, Transaction } = require('mongodb');
 const uri = "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 
@@ -139,9 +139,9 @@ async function run() {
       res.send(result)
     })
 
-    app.get("/products/:name", async (req, res) => {
-      const name = res.params
-
+    app.get("/w/products/:name", async (req, res) => {
+      const name = req.params.name
+      console.log(name, "hello")
       const query = { shopName: name }
       const result = await productsCollection.find(query).toArray()
       res.send(result)
@@ -198,11 +198,16 @@ async function run() {
       res.send(paymentResult);
     })
 
+    // Transaction related api ==========================================================
 
 
+ app.get('/transaction', async (req, res) => {
 
-    // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
+      const paymentResult = await paymentCollection.find().toArray()
+      res.send(paymentResult);
+    })
+
+
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
