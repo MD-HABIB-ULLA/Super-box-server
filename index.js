@@ -39,174 +39,153 @@ async function run() {
     const productsCollection = client.db("SuperBox").collection("products")
     const customerCollection = client.db("SuperBox").collection("customers")
     const paymentCollection = client.db("SuperBox").collection("payments")
+    const appliedSellerCollection = client.db("SuperBox").collection("appliedSellers")
 
+   // User-related APIs===================================================================
+   app.post('/users', async (req, res) => {
+    const user = req.body;
+    const query = { email: user?.email };
+    const existingUser = await userCollection.findOne(query);
+    if (existingUser) {
+      return res.send({ message: 'User already exists', insertedId: null });
+    }
+    const result = await userCollection.insertOne(user);
+    res.send("User created");
+  });
 
-    // user related api===================================================================
+  app.get('/users', async (req, res) => {
+    const result = await userCollection.find().toArray();
+    res.send(result);
+  });
 
-    app.post('/users', async (req, res) => {
-      const user = req.body;
+  // Role definition API========================================================================
+  app.get('/users/role/:email', async (req, res) => {
+    const email = req.params.email;
+    const user = await userCollection.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+    res.send({ role: user.role || "user" });
+  });
 
+  // Seller-related APIs=======================================================================
+  app.post("/appliedForSeller", async (req, res) => {
+    const webData = req.body;
+    const query = { email: webData.email };
+    const checkValidation = await appliedSellerCollection.findOne(query);
+    if (checkValidation) {
+      return res.status(404).send({ message: "Already applied, please wait for approval" });
+    }
+    const result = await appliedSellerCollection.insertOne(webData);
+    res.send(result);
+  });
 
-      // insert email if user doesn't exist
-      const query = { email: user?.email };
-      const existingUser = await userCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: 'User already exists', insertedId: null })
-      }
-      const result = await userCollection.insertOne(user);
-      res.send("helo");
+  app.get("/requests", async (req, res) => {
+    const result = await appliedSellerCollection.find().toArray();
+    res.send(result);
+  });
+
+  app.post("/approve/:email", async (req, res) => {
+    const email = req.params.email;
+    console.log(email);
+    res.send("Seller approved");
+  });
+
+  // Website-related APIs-=================================================================================
+  app.get("/webData/:email", async (req, res) => {
+    const email = req.params.email;
+    const result = await webCollection.findOne({ email });
+    res.send(result);
+  });
+
+  app.get("/w/:name", async (req, res) => {
+    const name = req.params.name;
+    const result = await webCollection.findOne({ "webInfo.shopName": name });
+    res.send(result);
+  });
+
+  app.get("/sellerData", async (req, res) => {
+    const result = await webCollection.find().toArray();
+    res.send(result);
+  });
+
+  // Products-related APIs========================================================================
+  app.get("/products/:email", async (req, res) => {
+    const email = req.params.email;
+    const result = await productsCollection.find({ email }).toArray();
+    res.send(result);
+  });
+
+  app.get("/w/products/:name", async (req, res) => {
+    const name = req.params.name;
+    const result = await productsCollection.find({ shopName: name }).toArray();
+    res.send(result);
+  });
+
+  app.post("/addProducts", async (req, res) => {
+    const requests = req.body;
+    const result = await productsCollection.insertOne(requests);
+    res.send(result);
+  });
+
+  app.delete("/deleteProduct/:id", async (req, res) => {
+    const id = req.params.id;
+    const result = await productsCollection.deleteOne({ _id: new ObjectId(id) });
+    res.send(result);
+  });
+
+  app.get("/product/:id", async (req, res) => {
+    const id = req.params.id;
+    const result = await productsCollection.findOne({ _id: new ObjectId(id) });
+    res.send(result);
+  });
+
+  app.get("/products", async (req, res) => {
+    const result = await productsCollection.find().toArray();
+    res.send(result);
+  });
+
+  // Customer-related APIs===================================================================
+  app.post('/customer', async (req, res) => {
+    const customer = req.body;
+    const query = { email: customer?.email };
+    const existingCustomer = await customerCollection.findOne(query);
+    if (existingCustomer) {
+      return res.send({ message: 'Customer already exists', insertedId: null });
+    }
+    const result = await customerCollection.insertOne(customer);
+    res.send("Customer created");
+  });
+
+  app.get("/customers", async (req, res) => {
+    const result = await customerCollection.find().toArray();
+    res.send(result);
+  });
+
+  // Payment-related APIs============================================================================
+  app.post('/create-payment-intent', async (req, res) => {
+    const { price } = req.body;
+    const amount = parseInt(price * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+      payment_method_types: ['card']
     });
-
-    app.get('/users', async (req, res) => {
-      const result = await userCollection.find().toArray();
-      res.send(result);
+    res.send({
+      clientSecret: paymentIntent.client_secret
     });
+  });
 
+  app.post('/payments', async (req, res) => {
+    const payment = req.body;
+    const paymentResult = await paymentCollection.insertOne(payment);
+    res.send(paymentResult);
+  });
 
-    // role define =========================================================
-    app.get('/users/role/:email', async (req, res) => {
-      const email = req.params.email;
-
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-
-      if (!user) {
-        return res.status(404).send({ message: "User not found" });
-      }
-      if (user.role === "admin") {
-        return res.send({ role: 'admin' });
-      }
-      if (user.role === "seller") {
-        return res.send({ role: 'seller' });
-      }
-      return res.send({ role: "user" });
-    });
-
-
-    // website related api ===========================================================
-
-    app.post("/createWebsite", async (req, res) => {
-      const webData = req.body
-      const newSellerEmail = req.body.email
-      const query = { email: newSellerEmail };
-      const user = await userCollection.findOne(query);
-
-      if (!user) {
-        return res.status(404).send({ message: "User not found" });
-      }
-      const update = {
-        $set: {
-          role: "seller", // Update the role field to 'seller'
-        },
-      };
-      const updateRole = await userCollection.updateOne(query, update);
-      const result = await webCollection.insertOne(webData)
-      console.log(webData)
-      res.send({ updateRole, result })
-    })
-
-    app.get("/webData/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email }
-      const result = await webCollection.findOne(query)
-      res.send(result)
-    })
-    app.get("/w/:name", async (req, res) => {
-      const name = req.params.name;
-
-      const query = { "webInfo.shopName": name }
-      const result = await webCollection.findOne(query)
-      res.send(result)
-    })
-    app.get("/sellerData", async (req, res) => {
-
-      const result = await webCollection.find().toArray()
-      res.send(result)
-
-    })
-    app.get("/customers", async (req, res) => {
-
-      const result = await customerCollection.find().toArray()
-      res.send(result)
-
-    })
-
-    // products related api============================================================== 
-    app.get("/products/:email", async (req, res) => {
-      const email = res.params
-      const query = { email: email }
-      const result = await productsCollection.find(query).toArray()
-      res.send(result)
-    })
-
-    app.get("/w/products/:name", async (req, res) => {
-      const name = req.params.name
-      console.log(name, "hello")
-      const query = { shopName: name }
-      const result = await productsCollection.find(query).toArray()
-      res.send(result)
-    })
-    app.get("/product/:id", async (req, res) => {
-      const id = req.params.id
-
-      const query = { _id: new ObjectId(id) }
-      const result = await productsCollection.findOne(query)
-      res.send(result)
-    })
-    app.get("/products", async (req, res) => {
-      const result = await productsCollection.find().toArray()
-      res.send(result)
-    })
-
-    // customer related api ================================================
-    app.post('/customer', async (req, res) => {
-      const user = req.body;
-
-
-      // insert email if user doesn't exist
-      const query = { email: user?.email };
-      const existingUser = await customerCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: 'User already exists', insertedId: null })
-      }
-      const result = await customerCollection.insertOne(user);
-      res.send("helo");
-    });
-
-
-
-
-    // payment related api =======================================================
-    app.post('/create-payment-intent', async (req, res) => {
-      const { price } = req.body;
-      const amount = parseInt(price * 100);
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ['card']
-      });
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      })
-
-    })
-
-    app.post('/payments', async (req, res) => {
-      const payment = req.body;
-      const paymentResult = await paymentCollection.insertOne(payment);
-      res.send(paymentResult);
-    })
-
-    // Transaction related api ==========================================================
-
-
- app.get('/transaction', async (req, res) => {
-
-      const paymentResult = await paymentCollection.find().toArray()
-      res.send(paymentResult);
-    })
-
+  app.get('/transaction', async (req, res) => {
+    const paymentResult = await paymentCollection.find().toArray();
+    res.send(paymentResult);
+  });
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
