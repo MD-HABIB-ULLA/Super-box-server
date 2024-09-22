@@ -40,6 +40,7 @@ async function run() {
     const customerCollection = client.db("SuperBox").collection("customers")
     const paymentCollection = client.db("SuperBox").collection("payments")
     const appliedSellerCollection = client.db("SuperBox").collection("appliedSellers")
+    const blogCollection = client.db("SuperBox").collection("blogs")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -147,6 +148,20 @@ async function run() {
       console.log(email);
       res.send("Seller approved");
     });
+    app.delete("/deleteSeller/:id", async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const webData = await webCollection.findOne(query)
+      const findUser = await userCollection.findOne({ email: webData.email })
+      const update = {
+        $unset: {
+          role: "",  // Empty string, doesn't matter what the value is
+        },
+      };
+      const removeRole = await userCollection.updateOne({ email: webData.email }, update);
+      const result = await webCollection.deleteOne(query)
+      res.send(result)
+    })
 
     // Website-related APIs-=================================================================================
     app.get("/webData/:email", async (req, res) => {
@@ -168,9 +183,10 @@ async function run() {
     });
 
     // Products-related APIs========================================================================
-    app.get("/products/:email", async (req, res) => {
+    app.get("/sellerProducts/:email", async (req, res) => {
       const email = req.params.email;
-      const result = await productsCollection.find({ email }).toArray();
+      console.log(email)
+      const result = await productsCollection.find({ sellerEmail: email }).toArray();
       res.send(result);
     });
 
@@ -181,10 +197,23 @@ async function run() {
     });
 
     app.post("/addProducts", async (req, res) => {
-      const requests = req.body;
-      const result = await productsCollection.insertOne(requests);
+      const productData = req.body;
+
+      // const result = await productsCollection.insertOne(requests);
+      const findWebsite = await webCollection.findOne({ email: productData.sellerEmail })
+
+
+      const finalData = { ...productData, shopName: findWebsite.webInfo.shopName }
+      const result = await productsCollection.insertOne(finalData)
+      console.log(finalData)
       res.send(result);
     });
+    app.delete("/deleteProduct/:id", async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await productsCollection.deleteOne(query);
+      res.send(result)
+    })
 
     app.delete("/deleteProduct/:id", async (req, res) => {
       const id = req.params.id;
@@ -219,6 +248,19 @@ async function run() {
       const result = await customerCollection.find().toArray();
       res.send(result);
     });
+    // blog-related api ======================================================================
+    app.post("/addBlog", async (req, res) => {
+      const requests = req.body;
+      const result = await blogCollection.insertOne(requests);
+      res.send(result);
+    });
+    app.delete("/deleteBlog/:id", async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await blogCollection.deleteOne(query);
+      res.send(result)
+    })
+
 
     // Payment-related APIs============================================================================
     app.post('/create-payment-intent', async (req, res) => {
