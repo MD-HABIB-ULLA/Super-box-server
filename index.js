@@ -90,19 +90,6 @@ async function run() {
       const result = await appliedSellerCollection.findOne(query);
       res.send(result);
     });
-    // const user = await userCollection.findOne(query);
-
-    // if (!user) {
-    //   return res.status(404).send({ message: "User not found" });
-    // }
-    // const update = {
-    //   $set: {
-    //     role: "seller", // Update the role field to 'seller'
-    //   },
-    // };
-    // const updateRole = await userCollection.updateOne(query, update);
-    // const result = await webCollection.insertOne(webData)
-
     app.post("/approveSeller/:id", async (req, res) => {
       const id = req.params.id;
       try {
@@ -147,6 +134,12 @@ async function run() {
         res.status(500).send({ message: "Server error" });
       }
     });
+    app.delete("/deleteRequest/:id", async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await appliedSellerCollection.deleteOne(query);
+      res.send(result)
+    })
 
 
     app.post("/approve/:email", async (req, res) => {
