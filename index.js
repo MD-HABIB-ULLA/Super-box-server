@@ -163,6 +163,21 @@ async function run() {
       res.send(result)
     })
 
+    app.get("/pendingSeller/:email", async (req, res) => {
+      try {
+        const findRequest = await appliedSellerCollection.findOne({ email: req.params.email });
+        if (findRequest) {
+          res.send(true);
+        } else {
+          res.send(false);
+        }
+      } catch (error) {
+        console.error("Error fetching seller:", error);
+        res.status(500).send({ error: "Server error" });
+      }
+    });
+
+
     // Website-related APIs-=================================================================================
     app.get("/webData/:email", async (req, res) => {
       const email = req.params.email;
