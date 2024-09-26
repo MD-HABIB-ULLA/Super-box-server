@@ -145,7 +145,7 @@ async function run() {
 
     app.post("/approve/:email", async (req, res) => {
       const email = req.params.email;
-      console.log(email);
+
       res.send("Seller approved");
     });
     app.delete("/deleteSeller/:id", async (req, res) => {
@@ -185,6 +185,46 @@ async function run() {
       const result = await webCollection.findOne({ email });
       res.send(result);
     });
+    app.put("/webData/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const updateData = req.body; // This can include banner, navbar, etc.
+
+        if (!Object.keys(updateData).length) {
+          return res.status(400).json({ message: "No data provided." });
+        }
+
+        // Construct the update query dynamically based on the data provided
+        let updateFields = {};
+        for (const key in updateData) {
+          if (updateData.hasOwnProperty(key)) {
+            updateFields[`webInfo.${key}`] = updateData[key];
+          }
+        }
+        console.log(updateFields)
+        const updatedShop = await webCollection.findOneAndUpdate(
+          { email },
+          {
+            $set: updateFields
+          },
+          { new: true }
+        );
+
+        if (!updatedShop) {
+          return res.status(404).json({ message: "Shop not found with the provided email." });
+        }
+
+        res.status(200).json({
+          message: "Data updated successfully",
+          updatedShop
+        });
+
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error });
+      }
+    });
+
+
 
     app.get("/w/:name", async (req, res) => {
       const name = req.params.name;
@@ -220,7 +260,7 @@ async function run() {
 
       const finalData = { ...productData, shopName: findWebsite.webInfo.shopName }
       const result = await productsCollection.insertOne(finalData)
-      console.log(finalData)
+
       res.send(result);
     });
     app.delete("/deleteProduct/:id", async (req, res) => {
