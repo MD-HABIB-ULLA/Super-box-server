@@ -263,12 +263,7 @@ async function run() {
 
       res.send(result);
     });
-    app.delete("/deleteProduct/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await productsCollection.deleteOne(query);
-      res.send(result)
-    })
+
 
     app.delete("/deleteProduct/:id", async (req, res) => {
       const id = req.params.id;
@@ -284,6 +279,15 @@ async function run() {
 
     app.get("/products", async (req, res) => {
       const result = await productsCollection.find().toArray();
+      res.send(result);
+    });
+    app.put("/product/:id", async (req, res) => {
+      const id = req.params.id
+      const updatedData = req.body
+      const result = await productsCollection.updateOne({ _id: new ObjectId(id) },
+        {
+          $set: updatedData
+        },);
       res.send(result);
     });
 
