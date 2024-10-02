@@ -315,7 +315,7 @@ async function run() {
       res.send(result);
     });
     app.get("/blogs/:email", async (req, res) => {
-      const email = req.params.email
+   
       const result = await blogCollection.find({ email: req.params.email }).toArray()
       res.send(result)
     })
