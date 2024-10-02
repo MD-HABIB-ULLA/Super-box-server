@@ -41,6 +41,7 @@ async function run() {
     const paymentCollection = client.db("SuperBox").collection("payments")
     const appliedSellerCollection = client.db("SuperBox").collection("appliedSellers")
     const blogCollection = client.db("SuperBox").collection("blogs")
+    const serviceCollection = client.db("SuperBox").collection("services")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -322,6 +323,25 @@ async function run() {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await blogCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    // service-related APIs============================================================================
+    app.post('/service', async (req, res) => {
+      const serviceData = req.body
+      const result = await serviceCollection.insertOne(serviceData)
+      res.send(result)
+    })
+    app.get('/service/:name', async (req, res) => {
+      const name = req.params.name
+      const query = { shopName: name }
+      const result = await serviceCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.delete('/service/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await serviceCollection.deleteOne(query)
       res.send(result)
     })
 
