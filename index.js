@@ -241,7 +241,6 @@ async function run() {
     // Products-related APIs========================================================================
     app.get("/sellerProducts/:email", async (req, res) => {
       const email = req.params.email;
-      console.log(email)
       const result = await productsCollection.find({ sellerEmail: email }).toArray();
       res.send(result);
     });
@@ -308,6 +307,32 @@ async function run() {
       const result = await customerCollection.find().toArray();
       res.send(result);
     });
+    app.get("/customerInfo/:email", async (req, res) => {
+      const { email } = req.params
+
+      const result = await customerCollection.findOne({ email: email });
+      res.send(result);
+    });
+    app.put('/customer/:email', async (req, res) => {
+      const { email } = req.params;
+      const updatedData = req.body;
+      
+      try {
+        const result = await customerCollection.findOneAndUpdate(
+          { email: email },
+          { $set: updatedData },
+          { returnOriginal: false }  // This ensures the updated document is returned
+        );
+   
+    
+        res.json({ message: 'Customer updated successfully', data: result.value });
+      } catch (error) {  // You forgot to pass the 'error' object here
+        res.status(500).json({ message: 'Error updating customer', error: error.message });
+      }
+    });
+
+
+
     // blog-related api ======================================================================
     app.post("/addBlog", async (req, res) => {
       const requests = req.body;
@@ -315,7 +340,7 @@ async function run() {
       res.send(result);
     });
     app.get("/blogs/:email", async (req, res) => {
-      const email = req.params.email
+
       const result = await blogCollection.find({ email: req.params.email }).toArray()
       res.send(result)
     })
@@ -344,6 +369,13 @@ async function run() {
       const result = await serviceCollection.deleteOne(query)
       res.send(result)
     })
+    app.get('/serviceDetails/:id', async (req, res) => {
+      const id = req.params.id
+
+      const query = { _id: new ObjectId(id) }
+      const result = await serviceCollection.findOne(query)
+      res.send(result)
+    })
 
 
     // Payment-related APIs============================================================================
@@ -370,6 +402,104 @@ async function run() {
       const paymentResult = await paymentCollection.find().toArray();
       res.send(paymentResult);
     });
+
+    // cart related api 
+    app.post('/cart/:id/:email', async (req, res) => {
+      try {
+        const { id, email } = req.params;
+        let user = await customerCollection.findOne({ email: email });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const itemExists = user.cart.includes(id);
+        if (itemExists) {
+          return res.status(400).json({ message: "Item already in cart", cart: user.cart });
+        }
+
+        const result = await customerCollection.updateOne(
+          { email: email },
+          { $push: { cart: id } }
+        );
+
+
+        if (result.modifiedCount === 1) {
+          return res.status(200).json({ message: "Item added to cart", cart: [...user.cart, id] });
+        } else {
+          return res.status(500).json({ message: "Failed to update cart" });
+        }
+      } catch (error) {
+
+        res.status(500).json({ message: "Internal server error", error: error.message });
+      }
+    });
+
+
+    app.get("/cart/:email/:shopName", async (req, res) => {
+      try {
+        const { email, shopName } = req.params;
+
+        // Find the user by email
+        const user = await customerCollection.findOne({ email: email });
+
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const cartItems = user.cart; // Array of product IDs from the cart
+
+        if (!cartItems.length) {
+          return res.status(200).json({ message: "Cart is empty", products: [] });
+        }
+
+        // Query the products collection for products in the cart that match the shopName
+        const query = {
+          _id: { $in: cartItems.map(id => new ObjectId(id)) }, // Match product IDs in the cart
+          shopName: shopName // Match the specific shopName
+        };
+
+        const products = await productsCollection.find(query).toArray();
+
+        // Send the matching products as the response
+        res.status(200).json({ products });
+      } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error.message });
+      }
+    });
+    app.delete("/cart/:id/:email", async (req, res) => {
+      const { id, email } = req.params;
+
+      try {
+        const customer = await customerCollection.findOne({ email: email });
+
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+
+        if (!customer.cart || customer.cart.length === 0) {
+          return res.status(404).json({ message: "Cart is empty" });
+        }
+
+        const updatedCart = customer.cart.filter(
+          (item) => item !== id
+        );
+
+        const result = await customerCollection.updateOne(
+          { email: email },
+          { $set: { cart: updatedCart } }
+        );
+
+        return res
+          .status(200)
+          .json({ message: "Item removed from cart", products: updatedCart });
+      } catch (error) {
+        return res.status(500).json({ message: "Error deleting item from cart" });
+      }
+    });
+
+
+
+
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
