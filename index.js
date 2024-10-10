@@ -281,6 +281,12 @@ async function run() {
       const result = await productsCollection.find().toArray();
       res.send(result);
     });
+    app.get("/purchaseProducts/:email", async (req, res) => {
+      const {email} = req.params
+  
+      const result = await paymentCollection.find({ email: email }).toArray();
+      res.send(result);
+    });
     app.put("/product/:id", async (req, res) => {
       const id = req.params.id
       const updatedData = req.body
@@ -316,15 +322,15 @@ async function run() {
     app.put('/customer/:email', async (req, res) => {
       const { email } = req.params;
       const updatedData = req.body;
-      
+
       try {
         const result = await customerCollection.findOneAndUpdate(
           { email: email },
           { $set: updatedData },
           { returnOriginal: false }  // This ensures the updated document is returned
         );
-   
-    
+
+
         res.json({ message: 'Customer updated successfully', data: result.value });
       } catch (error) {  // You forgot to pass the 'error' object here
         res.status(500).json({ message: 'Error updating customer', error: error.message });
