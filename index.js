@@ -42,6 +42,7 @@ async function run() {
     const appliedSellerCollection = client.db("SuperBox").collection("appliedSellers")
     const blogCollection = client.db("SuperBox").collection("blogs")
     const serviceCollection = client.db("SuperBox").collection("services")
+    const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -282,8 +283,8 @@ async function run() {
       res.send(result);
     });
     app.get("/purchaseProducts/:email", async (req, res) => {
-      const {email} = req.params
-  
+      const { email } = req.params
+
       const result = await paymentCollection.find({ email: email }).toArray();
       res.send(result);
     });
@@ -403,6 +404,26 @@ async function run() {
       const paymentResult = await paymentCollection.insertOne(payment);
       res.send(paymentResult);
     });
+
+    app.post('/payment', async (req, res) => {
+      const data = req.body;  // Get the product data from the request body
+     
+      try {
+        if (Array.isArray(data)) {
+          // If the data is an array, use insertMany to insert multiple products
+          const result = await pendingProductCollection.insertMany(data);
+          res.status(201).json({ message: 'Multiple products inserted', result });
+        } else {
+          // If it's a single product, use insertOne to insert just one
+          const result = await pendingProductCollection.insertOne(data);
+          res.status(201).json({ message: 'Single product inserted', result });
+        }
+      } catch (error) {
+        console.error('Error inserting product(s):', error);
+        res.status(500).json({ error: 'Failed to insert product(s)' });
+      }
+    });
+
 
     app.get('/transaction', async (req, res) => {
       const paymentResult = await paymentCollection.find().toArray();
