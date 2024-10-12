@@ -428,9 +428,10 @@ async function run() {
       }
     });
     app.post('/paymentSSL', async (req, res) => {
-      const data = req.body
+      const data = req.body;
+      const trxId = new ObjectId().toString();
 
-      const trxId = new ObjectId().toString()
+      // Prepare initial data for SSLCommerz
       const initialData = {
         store_id: "super670a204485dde",  // Your store ID
         store_passwd: "super670a204485dde@ssl",  // Your store password
@@ -464,18 +465,23 @@ async function run() {
         value_c: "ref003_C",
         value_d: "ref004_D"
       };
-      const productData = {
-        amount: data.Amount,
-        tran_id: trxId,
-        webName: data.webName,
-        status: "pending"
-      }
-
-      const saveDataToDataBase = await productPaymentCollection.insertOne(productData)
-
 
       try {
-        // Make the POST request with form-encoded data
+        // Update product details for each productId
+        for (let id of data.productId) {
+          const product = await productsCollection.findOne({ _id: new ObjectId(id) });
+          const { _id, ...restOfProduct } = product
+          const updateData = {
+            ...restOfProduct,
+            paymentStatus: "pending", // Mark as pending payment
+            transactionId: trxId // Add transaction ID
+          };
+
+          // Update the product in the database
+          await productPaymentCollection.insertOne(updateData);
+        }
+
+        // After updating the product details, make the payment request to SSLCommerz
         const response = await axios.post(
           'https://sandbox.sslcommerz.com/gwprocess/v4/api.php',
           qs.stringify(initialData),  // Convert to x-www-form-urlencoded
@@ -486,27 +492,52 @@ async function run() {
           }
         );
 
-        // Log the response from SSLCommerz
+        // Log the response from SSLCommerz and send the response back to the client
+        res.json({
+          message: "Payment success and product status updated",
+          sslCommerzResponse: response.data,
+          transactionId: trxId
+        });
 
-        res.json(response.data);  // Send the response back to the client
       } catch (error) {
-        console.error("Error in SSLCommerz request:", error.response ? error.response.data : error.message);
+        console.error("Error in SSLCommerz request or updating products:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "Payment request failed" });
       }
     });
+
+
+
     app.post('/success-payment', async (req, res) => {
       const successData = req.body;
-      console.log(successData);
+    
 
-      // Update the transaction status to 'success' in the database
-      await productPaymentCollection.updateOne(
-        { tran_id: successData.tran_id },
-        { $set: { status: "success", details: successData } }
-      );
+      try {
+        // Find all products with the same transactionId
+        const products = await productPaymentCollection.find({ transactionId: successData.tran_id }).toArray();
 
-      const wedName = await productPaymentCollection.findOne({ tran_id: successData.tran_id })
-      res.redirect(`http://localhost:5173/w/${wedName.webName}`)
+        if (products.length === 0) {
+          return res.status(404).send('No products found for this transaction.');
+        }
+
+        // Loop through each product and update the payment status
+        for (let product of products) {
+          await productPaymentCollection.updateOne(
+            { _id: product._id }, // Filter by product's unique _id
+            { $set: { paymentStatus: "success" } } // Set the payment status to 'success'
+          );
+        }
+
+        // Get the website name from any of the products (assuming all share the same webName)
+        const wedName = products[0].shopName;
+
+        // Redirect to the website page with the webName
+        res.redirect(`http://localhost:5173/w/${wedName}`);
+      } catch (error) {
+        console.error('Error updating payment status:', error);
+        res.status(500).send('Internal Server Error');
+      }
     });
+
 
     app.post('/failed', async (req, res) => {
       const failedData = req.body;
