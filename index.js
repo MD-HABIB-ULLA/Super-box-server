@@ -14,9 +14,12 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
+const qs = require('qs')
 
 
 const { MongoClient, ServerApiVersion, ObjectId, Transaction } = require('mongodb');
+const { default: axios } = require('axios');
 const uri = "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 
@@ -43,6 +46,7 @@ async function run() {
     const blogCollection = client.db("SuperBox").collection("blogs")
     const serviceCollection = client.db("SuperBox").collection("services")
     const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
+    const productPaymentCollection = client.db("SuperBox").collection("productPayments")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -407,7 +411,7 @@ async function run() {
 
     app.post('/payment', async (req, res) => {
       const data = req.body;  // Get the product data from the request body
-     
+
       try {
         if (Array.isArray(data)) {
           // If the data is an array, use insertMany to insert multiple products
@@ -423,6 +427,113 @@ async function run() {
         res.status(500).json({ error: 'Failed to insert product(s)' });
       }
     });
+    app.post('/paymentSSL', async (req, res) => {
+      const data = req.body
+
+      const trxId = new ObjectId().toString()
+      const initialData = {
+        store_id: "super670a204485dde",  // Your store ID
+        store_passwd: "super670a204485dde@ssl",  // Your store password
+        total_amount: data.Amount,
+        currency: "BDT",
+        tran_id: trxId,
+        success_url: "http://localhost:3000/success-payment",
+        fail_url: "http://localhost:3000/failed",
+        cancel_url: "http://localhost:3000/cancel",
+        cus_name: "John Doe",
+        cus_email: "john@example.com",
+        cus_add1: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1212",
+        cus_country: "Bangladesh",
+        cus_phone: "01700000000",
+        ship_name: "John Doe",
+        ship_add1: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: "1212",
+        ship_country: "Bangladesh",
+        product_name: "Test Product",
+        product_category: "Test",
+        product_profile: "general",
+        shipping_method: "NO",
+        multi_card_name: "VISA,MASTER,AMEX",  // Updated for supporting card payments
+        value_a: "ref001_A",
+        value_b: "ref002_B",
+        value_c: "ref003_C",
+        value_d: "ref004_D"
+      };
+      const productData = {
+        amount: data.Amount,
+        tran_id: trxId,
+        webName: data.webName,
+        status: "pending"
+      }
+
+      const saveDataToDataBase = await productPaymentCollection.insertOne(productData)
+
+
+      try {
+        // Make the POST request with form-encoded data
+        const response = await axios.post(
+          'https://sandbox.sslcommerz.com/gwprocess/v4/api.php',
+          qs.stringify(initialData),  // Convert to x-www-form-urlencoded
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'  // Set correct headers
+            }
+          }
+        );
+
+        // Log the response from SSLCommerz
+
+        res.json(response.data);  // Send the response back to the client
+      } catch (error) {
+        console.error("Error in SSLCommerz request:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: "Payment request failed" });
+      }
+    });
+    app.post('/success-payment', async (req, res) => {
+      const successData = req.body;
+      console.log(successData);
+
+      // Update the transaction status to 'success' in the database
+      await productPaymentCollection.updateOne(
+        { tran_id: successData.tran_id },
+        { $set: { status: "success", details: successData } }
+      );
+
+      const wedName = await productPaymentCollection.findOne({ tran_id: successData.tran_id })
+      res.redirect(`http://localhost:5173/w/${wedName.webName}`)
+    });
+
+    app.post('/failed', async (req, res) => {
+      const failedData = req.body;
+      console.log(failedData);
+
+      // Update the transaction status to 'failed' in the database
+      await productPaymentCollection.updateOne(
+        { tran_id: failedData.tran_id },
+        { $set: { status: "failed", details: failedData } }
+      );
+
+      res.status(200).json({ message: "Payment failed", data: failedData });
+    });
+
+    app.post('/cancel', async (req, res) => {
+      const cancelData = req.body;
+      console.log(cancelData);
+
+      // Update the transaction status to 'cancelled' in the database
+      await productPaymentCollection.updateOne(
+        { tran_id: cancelData.tran_id },
+        { $set: { status: "cancelled", details: cancelData } }
+      );
+
+      res.status(200).json({ message: "Payment cancelled", data: cancelData });
+    });
+
 
 
     app.get('/transaction', async (req, res) => {
@@ -430,7 +541,7 @@ async function run() {
       res.send(paymentResult);
     });
 
-    // cart related api 
+    // cart related api =============================================================
     app.post('/cart/:id/:email', async (req, res) => {
       try {
         const { id, email } = req.params;
