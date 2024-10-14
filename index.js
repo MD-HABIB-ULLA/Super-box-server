@@ -255,6 +255,12 @@ async function run() {
       const result = await productsCollection.find({ shopName: name }).toArray();
       res.send(result);
     });
+    app.get("/w/pendingProduct/:sellerEmail/:buyerEmail", async (req, res) => {
+      const { sellerEmail, buyerEmail } = req.params;
+      const result = await productPaymentCollection.find({ isReceived: false, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
+      res.send(result);
+    });
+
 
     app.post("/addProducts", async (req, res) => {
       const productData = req.body;
@@ -411,7 +417,7 @@ async function run() {
 
     app.post('/payment', async (req, res) => {
       const data = req.body;  // Get the product data from the request body
-
+     
       try {
         if (Array.isArray(data)) {
           // If the data is an array, use insertMany to insert multiple products
@@ -419,7 +425,7 @@ async function run() {
           res.status(201).json({ message: 'Multiple products inserted', result });
         } else {
           // If it's a single product, use insertOne to insert just one
-          const result = await pendingProductCollection.insertOne(data);
+          const result = await productPaymentCollection.insertOne(data);
           res.status(201).json({ message: 'Single product inserted', result });
         }
       } catch (error) {
@@ -473,6 +479,8 @@ async function run() {
           const { _id, ...restOfProduct } = product
           const updateData = {
             ...restOfProduct,
+            buyerEmail: data.buyerEmail,
+            isReceived: false,
             paymentStatus: "pending", // Mark as pending payment
             transactionId: trxId // Add transaction ID
           };
@@ -509,7 +517,7 @@ async function run() {
 
     app.post('/success-payment', async (req, res) => {
       const successData = req.body;
-    
+
 
       try {
         // Find all products with the same transactionId
@@ -531,7 +539,8 @@ async function run() {
         const wedName = products[0].shopName;
 
         // Redirect to the website page with the webName
-        res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
+        res.redirect(`http://localhost:5173/w/${wedName}`);
+        // res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
       } catch (error) {
         console.error('Error updating payment status:', error);
         res.status(500).send('Internal Server Error');
