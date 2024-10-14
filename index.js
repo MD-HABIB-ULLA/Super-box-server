@@ -255,6 +255,12 @@ async function run() {
       const result = await productsCollection.find({ shopName: name }).toArray();
       res.send(result);
     });
+    app.get("/w/pendingProduct/:sellerEmail/:buyerEmail", async (req, res) => {
+      const { sellerEmail, buyerEmail } = req.params;
+      const result = await productPaymentCollection.find({ isReceived: false, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
+      res.send(result);
+    });
+
 
     app.post("/addProducts", async (req, res) => {
       const productData = req.body;
@@ -403,10 +409,10 @@ async function run() {
       });
     });
 
-    app.post('/payments', async (req, res) => {
-      const payment = req.body;
-      const paymentResult = await paymentCollection.insertOne(payment);
-      res.send(paymentResult);
+    app.get('/payments/:email', async (req, res) => {
+      const { email } = req.params;
+      const pendingProduct = await productPaymentCollection.find({ sellerEmail: email }).toArray()
+      res.send(pendingProduct);
     });
 
     app.post('/payment', async (req, res) => {
@@ -415,17 +421,23 @@ async function run() {
       try {
         if (Array.isArray(data)) {
           // If the data is an array, use insertMany to insert multiple products
-          const result = await pendingProductCollection.insertMany(data);
+          const result = await productPaymentCollection.insertMany(data);
           res.status(201).json({ message: 'Multiple products inserted', result });
         } else {
           // If it's a single product, use insertOne to insert just one
-          const result = await pendingProductCollection.insertOne(data);
+          const result = await productPaymentCollection.insertOne(data);
           res.status(201).json({ message: 'Single product inserted', result });
         }
       } catch (error) {
         console.error('Error inserting product(s):', error);
         res.status(500).json({ error: 'Failed to insert product(s)' });
       }
+    });
+    app.delete('/w/payment/:id', async (req, res) => {
+      const { id } = req.params;  // Get the product data from the request body
+      console.log(id)
+      const result = await productPaymentCollection.deleteOne({ _id: new ObjectId(id) })
+      res.send(result)
     });
     app.post('/paymentSSL', async (req, res) => {
       const data = req.body;
@@ -473,6 +485,9 @@ async function run() {
           const { _id, ...restOfProduct } = product
           const updateData = {
             ...restOfProduct,
+            buyerEmail: data.buyerEmail,
+            paymentMethod: data.paymentMethod,
+            isReceived: false,
             paymentStatus: "pending", // Mark as pending payment
             transactionId: trxId // Add transaction ID
           };
@@ -509,7 +524,7 @@ async function run() {
 
     app.post('/success-payment', async (req, res) => {
       const successData = req.body;
-    
+
 
       try {
         // Find all products with the same transactionId
@@ -532,6 +547,7 @@ async function run() {
 
         // Redirect to the website page with the webName
         res.redirect(`http://localhost:5173/w/${wedName}`);
+        // res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
       } catch (error) {
         console.error('Error updating payment status:', error);
         res.status(500).send('Internal Server Error');
