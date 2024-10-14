@@ -409,19 +409,19 @@ async function run() {
       });
     });
 
-    app.post('/payments', async (req, res) => {
-      const payment = req.body;
-      const paymentResult = await paymentCollection.insertOne(payment);
-      res.send(paymentResult);
+    app.get('/payments/:email', async (req, res) => {
+      const { email } = req.params;
+      const pendingProduct = await productPaymentCollection.find({ sellerEmail: email }).toArray()
+      res.send(pendingProduct);
     });
 
     app.post('/payment', async (req, res) => {
       const data = req.body;  // Get the product data from the request body
-     
+
       try {
         if (Array.isArray(data)) {
           // If the data is an array, use insertMany to insert multiple products
-          const result = await pendingProductCollection.insertMany(data);
+          const result = await productPaymentCollection.insertMany(data);
           res.status(201).json({ message: 'Multiple products inserted', result });
         } else {
           // If it's a single product, use insertOne to insert just one
@@ -432,6 +432,12 @@ async function run() {
         console.error('Error inserting product(s):', error);
         res.status(500).json({ error: 'Failed to insert product(s)' });
       }
+    });
+    app.delete('/w/payment/:id', async (req, res) => {
+      const { id } = req.params;  // Get the product data from the request body
+      console.log(id)
+      const result = await productPaymentCollection.deleteOne({ _id: new ObjectId(id) })
+      res.send(result)
     });
     app.post('/paymentSSL', async (req, res) => {
       const data = req.body;
@@ -480,6 +486,7 @@ async function run() {
           const updateData = {
             ...restOfProduct,
             buyerEmail: data.buyerEmail,
+            paymentMethod: data.paymentMethod,
             isReceived: false,
             paymentStatus: "pending", // Mark as pending payment
             transactionId: trxId // Add transaction ID
