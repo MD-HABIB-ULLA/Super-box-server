@@ -260,6 +260,11 @@ async function run() {
       const result = await productPaymentCollection.find({ isReceived: false, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
       res.send(result);
     });
+    app.get("/w/purchasedProduct/:sellerEmail/:buyerEmail", async (req, res) => {
+      const { sellerEmail, buyerEmail } = req.params;
+      const result = await productPaymentCollection.find({ isReceived: true, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
+      res.send(result);
+    });
 
 
     app.post("/addProducts", async (req, res) => {
@@ -439,6 +444,37 @@ async function run() {
       const result = await productPaymentCollection.deleteOne({ _id: new ObjectId(id) })
       res.send(result)
     });
+    const { ObjectId } = require('mongodb'); // Import ObjectId if not already imported
+
+    // Update API for product payment
+    app.patch('/payment/:id', async (req, res) => {
+      const { id } = req.params;  // Extract the product ID from the request parameters
+      const updateData = req.body;  // Get the update data from the request body
+
+      try {
+        // Ensure that we have valid data to update
+        if (!updateData || Object.keys(updateData).length === 0) {
+          return res.status(400).json({ message: 'No update data provided' });
+        }
+
+        // Update the product in the collection
+        const result = await productPaymentCollection.updateOne(
+          { _id: new ObjectId(id) },  // Filter by the product ID
+          { $set: updateData }        // Use the $set operator to update the specified fields
+        );
+
+        // Send the response based on the result
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.status(200).json({ message: 'Product updated successfully', result });
+      } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({ message: 'Failed to update product', error });
+      }
+    });
+
     app.post('/paymentSSL', async (req, res) => {
       const data = req.body;
       const trxId = new ObjectId().toString();
