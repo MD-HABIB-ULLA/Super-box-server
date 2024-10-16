@@ -582,8 +582,8 @@ async function run() {
         const wedName = products[0].shopName;
 
         // Redirect to the website page with the webName
-        res.redirect(`http://localhost:5173/w/${wedName}`);
-        // res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
+        // res.redirect(`http://localhost:5173/w/${wedName}`);
+        res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
       } catch (error) {
         console.error('Error updating payment status:', error);
         res.status(500).send('Internal Server Error');
