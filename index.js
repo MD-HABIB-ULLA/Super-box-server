@@ -47,6 +47,7 @@ async function run() {
     const serviceCollection = client.db("SuperBox").collection("services")
     const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
     const productPaymentCollection = client.db("SuperBox").collection("productPayments")
+    const feedbackCollection = client.db("SuperBox").collection("feedbacks")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -582,8 +583,8 @@ async function run() {
         const wedName = products[0].shopName;
 
         // Redirect to the website page with the webName
-        res.redirect(`http://localhost:5173/w/${wedName}`);
-        // res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
+        // res.redirect(`http://localhost:5173/w/${wedName}`);
+        res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
       } catch (error) {
         console.error('Error updating payment status:', error);
         res.status(500).send('Internal Server Error');
@@ -718,6 +719,13 @@ async function run() {
       }
     });
 
+
+    // feedback related api ==================================================
+    app.post('/feedback', async (req, res) => {
+      const data = req.body
+      const result = await feedbackCollection.insertOne(data)
+      res.send(result)
+    })
 
 
 
