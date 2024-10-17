@@ -47,6 +47,7 @@ async function run() {
     const serviceCollection = client.db("SuperBox").collection("services")
     const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
     const productPaymentCollection = client.db("SuperBox").collection("productPayments")
+    const feedbackCollection = client.db("SuperBox").collection("feedbacks")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -718,6 +719,13 @@ async function run() {
       }
     });
 
+
+    // feedback related api ==================================================
+    app.post('/feedback', async (req, res) => {
+      const data = req.body
+      const result = await feedbackCollection.insertOne(data)
+      res.send(result)
+    })
 
 
 
