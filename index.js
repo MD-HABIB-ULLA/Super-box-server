@@ -367,6 +367,12 @@ async function run() {
       const result = await blogCollection.find({ email: req.params.email }).toArray()
       res.send(result)
     })
+    app.get("/blog/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await blogCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
     app.delete("/deleteBlog/:id", async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
