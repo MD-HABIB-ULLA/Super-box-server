@@ -426,25 +426,51 @@ async function run() {
       const pendingProduct = await productPaymentCollection.find({ sellerEmail: email }).toArray()
       res.send(pendingProduct);
     });
-
     app.post('/payment', async (req, res) => {
-      const data = req.body;  // Get the product data from the request body
+      const product = req.body;  // Get the single product object from the request body
+      // console.log(product);
 
       try {
-        if (Array.isArray(data)) {
-          // If the data is an array, use insertMany to insert multiple products
-          const result = await productPaymentCollection.insertMany(data);
-          res.status(201).json({ message: 'Multiple products inserted', result });
-        } else {
-          // If it's a single product, use insertOne to insert just one
-          const result = await productPaymentCollection.insertOne(data);
-          res.status(201).json({ message: 'Single product inserted', result });
+        // Insert a single product
+        const result = await productPaymentCollection.insertOne(product);
+
+        // Extract productId and buyerEmail from the product
+        const { productId, buyerEmail } = product;
+        console.log(productId, buyerEmail)
+        // Find the customer by their email
+        let customer = await customerCollection.findOne({ email: buyerEmail });
+        if (!customer) {
+          return res.status(404).json({ message: `User with email ${buyerEmail} not found.` });
         }
+
+        // Check if the product exists in the customer's cart
+        if (!customer.cart.includes(productId)) {
+          return res.status(400).json({ message: `Product ${productId} not found in ${buyerEmail}'s cart.` });
+        }
+
+        // Remove the product from the cart
+        const updatedCart = customer.cart.filter((item) => item !== productId);
+        const updateResult = await customerCollection.updateOne(
+          { email: buyerEmail },
+          { $set: { cart: updatedCart } }
+        );
+
+        if (updateResult.modifiedCount === 0) {
+          return res.status(500).json({ message: `Failed to remove product ${productId} from ${buyerEmail}'s cart.` });
+        }
+
+        // Send a success response if everything went well
+        res.status(200).json({ message: 'Product inserted and cart updated successfully', result });
+
       } catch (error) {
-        console.error('Error inserting product(s):', error);
-        res.status(500).json({ error: 'Failed to insert product(s)' });
+        console.error('Error processing payment or updating cart:', error);
+        res.status(500).json({ error: 'Failed to process payment and update cart' });
       }
     });
+
+
+
+
     app.delete('/w/payment/:id', async (req, res) => {
       const { id } = req.params;  // Get the product data from the request body
       console.log(id)
@@ -732,6 +758,53 @@ async function run() {
       const result = await feedbackCollection.insertOne(data)
       res.send(result)
     })
+
+    // massage related api =======================================================
+    app.post('/massage', async (req, res) => {
+      const { email, title, message, imageUrl } = req.body;
+ 
+   
+
+      try {
+        // Find the user by email
+        const user = await webCollection.findOne({ email });
+
+
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if `webInfo` exists in the user's document
+        if (!user.webInfo) {
+          user.webInfo = {};
+        }
+
+        // Check if the `message` object exists in `webInfo`
+        if (!user.webInfo.message) {
+          // If `message` object doesn't exist, create it
+          user.webInfo.message = {};
+        }
+
+    
+
+        // Update the user document in the database
+        const result = await webCollection.updateOne(
+          { email: email },
+          { $set: { 'webInfo.message': { title, message, imageUrl } } }
+        );
+
+        console.log(result)
+        if (result.modifiedCount > 0) {
+          return res.status(200).json({ message: 'Message object updated successfully' });
+        } else {
+          return res.status(400).json({ message: 'Failed to update the message object' });
+        }
+      } catch (error) {
+        console.error('Error updating webInfo:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+
 
 
 
