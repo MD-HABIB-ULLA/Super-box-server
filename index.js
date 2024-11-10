@@ -48,6 +48,7 @@ async function run() {
     const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
     const productPaymentCollection = client.db("SuperBox").collection("productPayments")
     const feedbackCollection = client.db("SuperBox").collection("feedbacks")
+    const bookedServiceCollection = client.db("SuperBox").collection("bookedServices")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -652,6 +653,8 @@ async function run() {
 
 
 
+
+
     app.get('/transaction', async (req, res) => {
       const paymentResult = await paymentCollection.find().toArray();
       res.send(paymentResult);
@@ -762,8 +765,8 @@ async function run() {
     // massage related api =======================================================
     app.post('/massage', async (req, res) => {
       const { email, title, message, imageUrl } = req.body;
- 
-   
+
+
 
       try {
         // Find the user by email
@@ -785,7 +788,7 @@ async function run() {
           user.webInfo.message = {};
         }
 
-    
+
 
         // Update the user document in the database
         const result = await webCollection.updateOne(
@@ -805,8 +808,70 @@ async function run() {
       }
     });
 
+    // service booking api 
+    app.post('/bookService', async (req, res) => {
+      const { userEmail, serviceId, serviceName, shopName, transactionId, date, time, serviceCost } = req.body;
+
+      try {
+        // Check if the user has an unfinished booking for the same service
+        const existingBooking = await bookedServiceCollection.findOne({
+          userEmail,
+          serviceId,
+          isFinished: false, // Only check unfinished bookings
+        });
+
+        if (existingBooking) {
+          return res.status(400).json({
+            message: "You have already booked this service and it is not yet finished.",
+          });
+        }
+
+        // If no existing booking, proceed with booking
+        const bookingData = {
+          userEmail,
+          serviceId,
+          serviceName,
+          shopName,
+          transactionId,
+          date,
+          time,
+          serviceCost,
+          status: 'booked',
+          isFinished: false,
+          createdAt: new Date(),
+        };
+
+        // Insert into bookedService collection
+        const result = await bookedServiceCollection.insertOne(bookingData);
+
+        res.status(200).json({
+          message: "Service successfully booked",
+          bookingId: result.insertedId,
+          data: bookingData,
+        });
+      } catch (error) {
+        console.error("Error booking service:", error);
+        res.status(500).json({ message: "Error booking service", error });
+      }
+    });
 
 
+    app.get('/bookService', async (req, res) => {
+      const key = req.query.key;
+      const value = req.query.value;
+
+
+
+      if (key && value) {
+        // Construct a dynamic query object
+        const query = { [key]: value };
+        const result = await bookedServiceCollection.find(query).toArray();
+        res.json(result);
+      } else {
+        res.status(400).send("Please provide both 'key' and 'value' as query parameters.");
+      }
+
+    });
 
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
