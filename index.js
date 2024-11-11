@@ -810,13 +810,14 @@ async function run() {
 
     // service booking api 
     app.post('/bookService', async (req, res) => {
-      const { userEmail, serviceId, serviceName, shopName, transactionId, date, time, serviceCost } = req.body;
+      const { userEmail, serviceId, serviceName, shopName, paymentMethod, transactionId, date, time, serviceCost } = req.body;
 
       try {
         // Check if the user has an unfinished booking for the same service
         const existingBooking = await bookedServiceCollection.findOne({
           userEmail,
           serviceId,
+
           isFinished: false, // Only check unfinished bookings
         });
 
@@ -834,7 +835,9 @@ async function run() {
           shopName,
           transactionId,
           date,
+          isPaid: false,
           time,
+          paymentMethod,
           serviceCost,
           status: 'booked',
           isFinished: false,
