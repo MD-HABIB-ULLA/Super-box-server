@@ -876,6 +876,33 @@ async function run() {
 
     });
 
+    app.put('/bookService/:id', async (req, res) => {
+      const { id } = req.params;
+    
+      try {
+        // Convert the `id` string to an ObjectId
+        const objectId = new ObjectId(id);
+    
+        // Update the document with the provided id
+        const result = await bookedServiceCollection.updateOne(
+          { _id: objectId }, // Query to find the document by its _id
+          { $set: req.body }  // Update operation using the request body
+        );
+    
+        // Check if any document was modified
+        if (result.modifiedCount === 0) {
+          res.status(404).json({ message: "No document found or no changes made" });
+        } else {
+          res.json({ message: "Service booking updated successfully", result });
+        }
+      } catch (error) {
+        console.error("Error updating service booking:", error);
+        res.status(500).json({ message: "Error updating service booking" });
+      }
+    });
+    
+
+
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
@@ -883,6 +910,9 @@ async function run() {
     // await client.close();
   }
 }
+
+
+
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
