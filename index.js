@@ -9,7 +9,7 @@ const stripe = require('stripe')("sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    "https://super-box-d647e.web.app",
+    "https://superboxorg.netlify.app",
   ],
   credentials: true
 }));
@@ -763,50 +763,55 @@ async function run() {
     })
 
     // massage related api =======================================================
-    app.post('/massage', async (req, res) => {
-      const { email, title, message, imageUrl } = req.body;
-
-
-
+    app.post('/bookService', async (req, res) => {
+      const { userEmail, serviceId, serviceName, shopName, paymentMethod, transactionId, date, time, serviceCost } = req.body;
+    
       try {
-        // Find the user by email
-        const user = await webCollection.findOne({ email });
-
-
-        if (!user) {
-          return res.status(404).json({ message: 'User not found' });
+        // Check if the user has an unfinished booking for the same service
+        const existingBooking = await bookedServiceCollection.findOne({
+          userEmail,
+          serviceId,
+          isFinished: false, // Only check unfinished bookings
+        });
+    
+        if (existingBooking) {
+          return res.status(400).json({
+            message: "You already have an unfinished booking for this service.",
+          });
         }
-
-        // Check if `webInfo` exists in the user's document
-        if (!user.webInfo) {
-          user.webInfo = {};
-        }
-
-        // Check if the `message` object exists in `webInfo`
-        if (!user.webInfo.message) {
-          // If `message` object doesn't exist, create it
-          user.webInfo.message = {};
-        }
-
-
-
-        // Update the user document in the database
-        const result = await webCollection.updateOne(
-          { email: email },
-          { $set: { 'webInfo.message': { title, message, imageUrl } } }
-        );
-
-        console.log(result)
-        if (result.modifiedCount > 0) {
-          return res.status(200).json({ message: 'Message object updated successfully' });
-        } else {
-          return res.status(400).json({ message: 'Failed to update the message object' });
-        }
+    
+        // If no existing unfinished booking, proceed with booking
+        const bookingData = {
+          userEmail,
+          serviceId,
+          serviceName,
+          shopName,
+          transactionId,
+          date,
+          isPaid: false,
+          time,
+          paymentMethod,
+          serviceCost,
+          status: 'booked',
+          isFinished: false,
+          createdAt: new Date(),
+        };
+    
+        // Insert into bookedService collection
+        const result = await bookedServiceCollection.insertOne(bookingData);
+    
+        res.status(200).json({
+          message: "Service successfully booked",
+          bookingId: result.insertedId,
+          data: bookingData,
+        });
       } catch (error) {
-        console.error('Error updating webInfo:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error booking service:", error);
+        res.status(500).json({ message: "Error booking service", error: error.message });
       }
     });
+    
+    
 
     // service booking api 
     app.post('/bookService', async (req, res) => {
@@ -816,7 +821,7 @@ async function run() {
         // Check if the user has an unfinished booking for the same service
         const existingBooking = await bookedServiceCollection.findOne({
           userEmail,
-          serviceId,
+     
 
           isFinished: false, // Only check unfinished bookings
         });
