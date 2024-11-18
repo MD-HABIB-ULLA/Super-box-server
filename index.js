@@ -758,8 +758,13 @@ async function run() {
     // feedback related api ==================================================
     app.post('/feedback', async (req, res) => {
       const data = req.body
-      const result = await feedbackCollection.insertOne(data)
+
+      const result = await feedbackCollection.insertOne({...data, status: 'pending'});
       res.send(result)
+    })
+    app.get('/feedback', async (req, res) => {
+      const feedbacks = await feedbackCollection.find().toArray();
+      res.send(feedbacks);
     })
 
     // massage related api =======================================================
@@ -907,6 +912,39 @@ async function run() {
     });
     
 
+    app.get('/productDelivery', async (req, res) => {
+      try {
+        // Fetch all products from the productPaymentCollection
+        const products = await productPaymentCollection.find({}).toArray();
+    
+        // Fetch all customers and web info
+        const customers = await customerCollection.find({}).toArray();
+        const webInfos = await webCollection.find({}).toArray();
+    
+        // Enrich products with customer and web info
+        const enrichedProducts = products.map(product => {
+          // Find the matching customer and web info
+          const customer = customers.find(c => c.email === product.buyerEmail);
+          const webInfo = webInfos.find(w => w.email === product.sellerEmail);
+    
+          // Return the enriched product
+          return {
+            ...product,
+            customerAddress: customer?.address || 'Address not found',
+            websiteDetails: webInfo?.sellerInfo || 'Website details not found',
+          };
+        });
+    
+        // Send the enriched products as the response
+        res.json(enrichedProducts);
+      } catch (error) {
+        console.error('Error fetching product delivery data:', error);
+        res.status(500).json({ error: 'Failed to fetch product delivery data' });
+      }
+    });
+    
+    
+    
 
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
