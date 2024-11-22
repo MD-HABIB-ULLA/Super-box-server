@@ -9,7 +9,7 @@ const stripe = require('stripe')("sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    "https://super-box-d647e.web.app",
+    "https://superboxorg.netlify.app",
   ],
   credentials: true
 }));
@@ -49,6 +49,7 @@ async function run() {
     const productPaymentCollection = client.db("SuperBox").collection("productPayments")
     const feedbackCollection = client.db("SuperBox").collection("feedbacks")
     const bookedServiceCollection = client.db("SuperBox").collection("bookedServices")
+    const deliveredCollection = client.db("SuperBox").collection("deliveredServices")
 
     // User-related APIs===================================================================
     app.post('/users', async (req, res) => {
@@ -494,7 +495,12 @@ async function run() {
         // Update the product in the collection
         const result = await productPaymentCollection.updateOne(
           { _id: new ObjectId(id) },  // Filter by the product ID
-          { $set: updateData }        // Use the $set operator to update the specified fields
+          {
+            $set: {
+              ...updateData, sendToDelivery: true,
+              isDelivered: false,
+            }
+          }        // Use the $set operator to update the specified fields
         );
 
         // Send the response based on the result
@@ -758,55 +764,65 @@ async function run() {
     // feedback related api ==================================================
     app.post('/feedback', async (req, res) => {
       const data = req.body
-      const result = await feedbackCollection.insertOne(data)
+
+      const result = await feedbackCollection.insertOne({ ...data, status: 'pending' });
       res.send(result)
+    })
+    app.get('/feedback', async (req, res) => {
+      const feedbacks = await feedbackCollection.find().toArray();
+      res.send(feedbacks);
     })
 
     // massage related api =======================================================
-    app.post('/massage', async (req, res) => {
-      const { email, title, message, imageUrl } = req.body;
-
-
+    app.post('/bookService', async (req, res) => {
+      const { userEmail, serviceId, serviceName, shopName, paymentMethod, transactionId, date, time, serviceCost } = req.body;
 
       try {
-        // Find the user by email
-        const user = await webCollection.findOne({ email });
+        // Check if the user has an unfinished booking for the same service
+        const existingBooking = await bookedServiceCollection.findOne({
+          userEmail,
+          serviceId,
+          isFinished: false, // Only check unfinished bookings
+        });
 
-
-        if (!user) {
-          return res.status(404).json({ message: 'User not found' });
+        if (existingBooking) {
+          return res.status(400).json({
+            message: "You already have an unfinished booking for this service.",
+          });
         }
 
-        // Check if `webInfo` exists in the user's document
-        if (!user.webInfo) {
-          user.webInfo = {};
-        }
+        // If no existing unfinished booking, proceed with booking
+        const bookingData = {
+          userEmail,
+          serviceId,
+          serviceName,
+          shopName,
+          transactionId,
+          date,
+          isPaid: false,
+          time,
+          paymentMethod,
+          serviceCost,
+          status: 'booked',
+          isFinished: false,
+          createdAt: new Date(),
+        };
 
-        // Check if the `message` object exists in `webInfo`
-        if (!user.webInfo.message) {
-          // If `message` object doesn't exist, create it
-          user.webInfo.message = {};
-        }
+        // Insert into bookedService collection
+        const result = await bookedServiceCollection.insertOne(bookingData);
 
-
-
-        // Update the user document in the database
-        const result = await webCollection.updateOne(
-          { email: email },
-          { $set: { 'webInfo.message': { title, message, imageUrl } } }
-        );
-
-        console.log(result)
-        if (result.modifiedCount > 0) {
-          return res.status(200).json({ message: 'Message object updated successfully' });
-        } else {
-          return res.status(400).json({ message: 'Failed to update the message object' });
-        }
+        res.status(200).json({
+          message: "Service successfully booked",
+          bookingId: result.insertedId,
+          data: bookingData,
+        });
       } catch (error) {
-        console.error('Error updating webInfo:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error booking service:", error);
+        res.status(500).json({ message: "Error booking service", error: error.message });
       }
     });
+
+
 
     // service booking api 
     app.post('/bookService', async (req, res) => {
@@ -816,7 +832,7 @@ async function run() {
         // Check if the user has an unfinished booking for the same service
         const existingBooking = await bookedServiceCollection.findOne({
           userEmail,
-          serviceId,
+
 
           isFinished: false, // Only check unfinished bookings
         });
@@ -878,17 +894,17 @@ async function run() {
 
     app.put('/bookService/:id', async (req, res) => {
       const { id } = req.params;
-    
+
       try {
         // Convert the `id` string to an ObjectId
         const objectId = new ObjectId(id);
-    
+
         // Update the document with the provided id
         const result = await bookedServiceCollection.updateOne(
           { _id: objectId }, // Query to find the document by its _id
           { $set: req.body }  // Update operation using the request body
         );
-    
+
         // Check if any document was modified
         if (result.modifiedCount === 0) {
           res.status(404).json({ message: "No document found or no changes made" });
@@ -900,7 +916,80 @@ async function run() {
         res.status(500).json({ message: "Error updating service booking" });
       }
     });
-    
+
+
+    app.get('/productDelivery', async (req, res) => {
+      try {
+        // Fetch all products from the productPaymentCollection
+        const products = await productPaymentCollection.find({}).toArray();
+
+        // Fetch all customers and web info
+        const customers = await customerCollection.find({}).toArray();
+        const webInfos = await webCollection.find({}).toArray();
+
+        // Enrich products with customer and web info
+        const enrichedProducts = products.map(product => {
+          // Find the matching customer and web info
+          const customer = customers.find(c => c.email === product.buyerEmail);
+          const webInfo = webInfos.find(w => w.email === product.sellerEmail);
+
+          // Return the enriched product
+          return {
+            ...product,
+            customerPhoneNumber: customer?.phoneNumber || "phone number not found",
+            customerAddress: customer?.address || 'Address not found',
+            websiteDetails: webInfo?.sellerInfo || 'Website details not found',
+          };
+        });
+
+        // Send the enriched products as the response
+        res.json(enrichedProducts);
+      } catch (error) {
+        console.error('Error fetching product delivery data:', error);
+        res.status(500).json({ error: 'Failed to fetch product delivery data' });
+      }
+    });
+
+    app.post("/sendToDelivery/:id", async (req, res) => {
+      const { id } = req.params; // The product/order ID
+      const deliveryDetails = req.body; // Additional details from the request body
+      const query = { _id: new ObjectId(id) }; // Query to find the order
+
+      try {
+        // Find the product in the productPaymentCollection
+        const order = await productPaymentCollection.findOne(query);
+
+        if (!order) {
+          return res.status(404).send({ message: "Order not found" });
+        }
+
+        // Update the delivery status to true
+        const updatedOrder = {
+          ...deliveryDetails,
+          isDelivered: true, // Root-level status
+          deliveredAt: new Date(), // Timestamp for delivery
+        };
+
+        // Ensure no repetition in nested deliveryDetails
+        if (updatedOrder.deliveryDetails) {
+          updatedOrder.deliveryDetails.IsDelivered = true; // Update nested status if needed
+        }
+
+        console.log(updatedOrder);
+
+        // Insert the updated order into the deliveredCollection
+        await deliveredCollection.insertOne(updatedOrder);
+
+        // Optionally: Update the original collection to mark it as delivered
+        await productPaymentCollection.updateOne(query, { $set: { isDelivered: true } });
+
+        res.status(200).send({ message: "Order sent to delivery successfully", updatedOrder });
+      } catch (error) {
+        console.error("Error sending order to delivery:", error);
+        res.status(500).send({ message: "Failed to send order to delivery", error });
+      }
+    });
+
 
 
 
