@@ -1,75 +1,88 @@
-const express = require('express');
-const app = express()
-const cors = require('cors');
+const express = require("express");
+const app = express();
+const cors = require("cors");
 const port = process.env.PORT || 3000;
-const stripe = require('stripe')("sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh0hCJLRWvEQGtkOJNHlaSSu2AutCcs5lF0aeT5pz84ZRNvTXxHxX00pu62gD6j");
-
+const stripe = require("stripe")(
+  "sk_test_51PLSF52NHkygt9EvLzJWyOstCdquzjbXWNHrh0hCJLRWvEQGtkOJNHlaSSu2AutCcs5lF0aeT5pz84ZRNvTXxHxX00pu62gD6j"
+);
 
 // middleware
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    "https://superboxorg.netlify.app",
-  ],
-  credentials: true
-}));
-app.use(express.json())
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://superboxorg.netlify.app",
+      "https://www.superboxorg.com/",    ],
+    credentials: true,
+  })
+);
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const qs = require('qs')
+const qs = require("qs");
 
-
-const { MongoClient, ServerApiVersion, ObjectId, Transaction } = require('mongodb');
-const { default: axios } = require('axios');
-const uri = "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
+const {
+  MongoClient,
+  ServerApiVersion,
+  ObjectId,
+  Transaction,
+} = require("mongodb");
+const { default: axios } = require("axios");
+const uri =
+  "mongodb+srv://SuperBox:jVbyiaDYl7zt6w2j@cluster0.3t1ep.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
-
-
 
 async function run() {
   try {
-
-
-    const userCollection = client.db("SuperBox").collection("users")
-    const webCollection = client.db("SuperBox").collection("websites")
-    const productsCollection = client.db("SuperBox").collection("products")
-    const customerCollection = client.db("SuperBox").collection("customers")
-    const paymentCollection = client.db("SuperBox").collection("payments")
-    const appliedSellerCollection = client.db("SuperBox").collection("appliedSellers")
-    const blogCollection = client.db("SuperBox").collection("blogs")
-    const serviceCollection = client.db("SuperBox").collection("services")
-    const pendingProductCollection = client.db("SuperBox").collection("pendingProducts")
-    const productPaymentCollection = client.db("SuperBox").collection("productPayments")
-    const feedbackCollection = client.db("SuperBox").collection("feedbacks")
-    const bookedServiceCollection = client.db("SuperBox").collection("bookedServices")
-    const deliveredCollection = client.db("SuperBox").collection("deliveredServices")
+    const userCollection = client.db("SuperBox").collection("users");
+    const webCollection = client.db("SuperBox").collection("websites");
+    const productsCollection = client.db("SuperBox").collection("products");
+    const customerCollection = client.db("SuperBox").collection("customers");
+    const paymentCollection = client.db("SuperBox").collection("payments");
+    const appliedSellerCollection = client
+      .db("SuperBox")
+      .collection("appliedSellers");
+    const blogCollection = client.db("SuperBox").collection("blogs");
+    const serviceCollection = client.db("SuperBox").collection("services");
+    const pendingProductCollection = client
+      .db("SuperBox")
+      .collection("pendingProducts");
+    const productPaymentCollection = client
+      .db("SuperBox")
+      .collection("productPayments");
+    const feedbackCollection = client.db("SuperBox").collection("feedbacks");
+    const bookedServiceCollection = client
+      .db("SuperBox")
+      .collection("bookedServices");
+    const deliveredCollection = client
+      .db("SuperBox")
+      .collection("deliveredServices");
 
     // User-related APIs===================================================================
-    app.post('/users', async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user?.email };
       const existingUser = await userCollection.findOne(query);
       if (existingUser) {
-        return res.send({ message: 'User already exists', insertedId: null });
+        return res.send({ message: "User already exists", insertedId: null });
       }
       const result = await userCollection.insertOne(user);
       res.send("User created");
     });
 
-    app.get('/users', async (req, res) => {
+    app.get("/users", async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     // Role definition API========================================================================
-    app.get('/users/role/:email', async (req, res) => {
+    app.get("/users/role/:email", async (req, res) => {
       const email = req.params.email;
       const user = await userCollection.findOne({ email });
       if (!user) {
@@ -84,7 +97,9 @@ async function run() {
       const query = { email: webData.email };
       const checkValidation = await appliedSellerCollection.findOne(query);
       if (checkValidation) {
-        return res.status(404).send({ message: "Already applied, please wait for approval" });
+        return res
+          .status(404)
+          .send({ message: "Already applied, please wait for approval" });
       }
       const result = await appliedSellerCollection.insertOne(webData);
       res.send(result);
@@ -95,8 +110,8 @@ async function run() {
       res.send(result);
     });
     app.get("/requestorDetails/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const result = await appliedSellerCollection.findOne(query);
       res.send(result);
     });
@@ -120,22 +135,33 @@ async function run() {
             role: "seller",
           },
         };
-        const updateUserRole = await userCollection.updateOne(updateQuery, update);
+        const updateUserRole = await userCollection.updateOne(
+          updateQuery,
+          update
+        );
 
         if (updateUserRole.modifiedCount === 0) {
-          return res.status(500).send({ message: "Failed to update user role" });
+          return res
+            .status(500)
+            .send({ message: "Failed to update user role" });
         }
 
         // Insert the seller's data into the webCollection
         const insertToWebCollection = await webCollection.insertOne(sellerInfo);
         if (!insertToWebCollection.insertedId) {
-          return res.status(500).send({ message: "Failed to insert seller into webCollection" });
+          return res
+            .status(500)
+            .send({ message: "Failed to insert seller into webCollection" });
         }
 
         // Remove the seller from the appliedSellerCollection
-        const deleteFromAppliedSeller = await appliedSellerCollection.deleteOne(query);
+        const deleteFromAppliedSeller = await appliedSellerCollection.deleteOne(
+          query
+        );
         if (deleteFromAppliedSeller.deletedCount === 0) {
-          return res.status(500).send({ message: "Failed to remove seller from applied collection" });
+          return res.status(500).send({
+            message: "Failed to remove seller from applied collection",
+          });
         }
 
         res.send({ message: "Seller approved successfully" });
@@ -145,12 +171,11 @@ async function run() {
       }
     });
     app.delete("/deleteRequest/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const result = await appliedSellerCollection.deleteOne(query);
-      res.send(result)
-    })
-
+      res.send(result);
+    });
 
     app.post("/approve/:email", async (req, res) => {
       const email = req.params.email;
@@ -158,23 +183,28 @@ async function run() {
       res.send("Seller approved");
     });
     app.delete("/deleteSeller/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const webData = await webCollection.findOne(query)
-      const findUser = await userCollection.findOne({ email: webData.email })
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const webData = await webCollection.findOne(query);
+      const findUser = await userCollection.findOne({ email: webData.email });
       const update = {
         $unset: {
-          role: "",  // Empty string, doesn't matter what the value is
+          role: "", // Empty string, doesn't matter what the value is
         },
       };
-      const removeRole = await userCollection.updateOne({ email: webData.email }, update);
-      const result = await webCollection.deleteOne(query)
-      res.send(result)
-    })
+      const removeRole = await userCollection.updateOne(
+        { email: webData.email },
+        update
+      );
+      const result = await webCollection.deleteOne(query);
+      res.send(result);
+    });
 
     app.get("/pendingSeller/:email", async (req, res) => {
       try {
-        const findRequest = await appliedSellerCollection.findOne({ email: req.params.email });
+        const findRequest = await appliedSellerCollection.findOne({
+          email: req.params.email,
+        });
         if (findRequest) {
           res.send(true);
         } else {
@@ -185,7 +215,6 @@ async function run() {
         res.status(500).send({ error: "Server error" });
       }
     });
-
 
     // Website-related APIs-=================================================================================
     app.get("/webData/:email", async (req, res) => {
@@ -210,30 +239,29 @@ async function run() {
             updateFields[`webInfo.${key}`] = updateData[key];
           }
         }
-        console.log(updateFields)
+        console.log(updateFields);
         const updatedShop = await webCollection.findOneAndUpdate(
           { email },
           {
-            $set: updateFields
+            $set: updateFields,
           },
           { new: true }
         );
 
         if (!updatedShop) {
-          return res.status(404).json({ message: "Shop not found with the provided email." });
+          return res
+            .status(404)
+            .json({ message: "Shop not found with the provided email." });
         }
 
         res.status(200).json({
           message: "Data updated successfully",
-          updatedShop
+          updatedShop,
         });
-
       } catch (error) {
         res.status(500).json({ message: "Server error", error });
       }
     });
-
-
 
     app.get("/w/:name", async (req, res) => {
       const name = req.params.name;
@@ -249,50 +277,75 @@ async function run() {
     // Products-related APIs========================================================================
     app.get("/sellerProducts/:email", async (req, res) => {
       const email = req.params.email;
-      const result = await productsCollection.find({ sellerEmail: email }).toArray();
+      const result = await productsCollection
+        .find({ sellerEmail: email })
+        .toArray();
       res.send(result);
     });
 
     app.get("/w/products/:name", async (req, res) => {
       const name = req.params.name;
-      const result = await productsCollection.find({ shopName: name }).toArray();
+      const result = await productsCollection
+        .find({ shopName: name })
+        .toArray();
       res.send(result);
     });
     app.get("/w/pendingProduct/:sellerEmail/:buyerEmail", async (req, res) => {
       const { sellerEmail, buyerEmail } = req.params;
-      const result = await productPaymentCollection.find({ isReceived: false, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
+      const result = await productPaymentCollection
+        .find({
+          isReceived: false,
+          buyerEmail: buyerEmail,
+          sellerEmail: sellerEmail,
+        })
+        .toArray();
       res.send(result);
     });
-    app.get("/w/purchasedProduct/:sellerEmail/:buyerEmail", async (req, res) => {
-      const { sellerEmail, buyerEmail } = req.params;
-      const result = await productPaymentCollection.find({ isReceived: true, buyerEmail: buyerEmail, sellerEmail: sellerEmail }).toArray()
-      res.send(result);
-    });
-
+    app.get(
+      "/w/purchasedProduct/:sellerEmail/:buyerEmail",
+      async (req, res) => {
+        const { sellerEmail, buyerEmail } = req.params;
+        const result = await productPaymentCollection
+          .find({
+            isReceived: true,
+            buyerEmail: buyerEmail,
+            sellerEmail: sellerEmail,
+          })
+          .toArray();
+        res.send(result);
+      }
+    );
 
     app.post("/addProducts", async (req, res) => {
       const productData = req.body;
 
       // const result = await productsCollection.insertOne(requests);
-      const findWebsite = await webCollection.findOne({ email: productData.sellerEmail })
+      const findWebsite = await webCollection.findOne({
+        email: productData.sellerEmail,
+      });
 
-
-      const finalData = { ...productData, shopName: findWebsite.webInfo.shopName }
-      const result = await productsCollection.insertOne(finalData)
+      const finalData = {
+        ...productData,
+        shopName: findWebsite.webInfo.shopName,
+      };
+      const result = await productsCollection.insertOne(finalData);
 
       res.send(result);
     });
 
-
     app.delete("/deleteProduct/:id", async (req, res) => {
       const id = req.params.id;
-      const result = await productsCollection.deleteOne({ _id: new ObjectId(id) });
+      const result = await productsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
       res.send(result);
     });
 
     app.get("/product/:id", async (req, res) => {
       const id = req.params.id;
-      const result = await productsCollection.findOne({ _id: new ObjectId(id) });
+      const result = await productsCollection.findOne({
+        _id: new ObjectId(id),
+      });
       res.send(result);
     });
 
@@ -301,28 +354,33 @@ async function run() {
       res.send(result);
     });
     app.get("/purchaseProducts/:email", async (req, res) => {
-      const { email } = req.params
+      const { email } = req.params;
 
       const result = await paymentCollection.find({ email: email }).toArray();
       res.send(result);
     });
     app.put("/product/:id", async (req, res) => {
-      const id = req.params.id
-      const updatedData = req.body
-      const result = await productsCollection.updateOne({ _id: new ObjectId(id) },
+      const id = req.params.id;
+      const updatedData = req.body;
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(id) },
         {
-          $set: updatedData
-        },);
+          $set: updatedData,
+        }
+      );
       res.send(result);
     });
 
     // Customer-related APIs===================================================================
-    app.post('/customer', async (req, res) => {
+    app.post("/customer", async (req, res) => {
       const customer = req.body;
       const query = { email: customer?.email };
       const existingCustomer = await customerCollection.findOne(query);
       if (existingCustomer) {
-        return res.send({ message: 'Customer already exists', insertedId: null });
+        return res.send({
+          message: "Customer already exists",
+          insertedId: null,
+        });
       }
       const result = await customerCollection.insertOne(customer);
       res.send("Customer created");
@@ -333,12 +391,12 @@ async function run() {
       res.send(result);
     });
     app.get("/customerInfo/:email", async (req, res) => {
-      const { email } = req.params
+      const { email } = req.params;
 
       const result = await customerCollection.findOne({ email: email });
       res.send(result);
     });
-    app.put('/customer/:email', async (req, res) => {
+    app.put("/customer/:email", async (req, res) => {
       const { email } = req.params;
       const updatedData = req.body;
 
@@ -346,17 +404,20 @@ async function run() {
         const result = await customerCollection.findOneAndUpdate(
           { email: email },
           { $set: updatedData },
-          { returnOriginal: false }  // This ensures the updated document is returned
+          { returnOriginal: false } // This ensures the updated document is returned
         );
 
-
-        res.json({ message: 'Customer updated successfully', data: result.value });
-      } catch (error) {  // You forgot to pass the 'error' object here
-        res.status(500).json({ message: 'Error updating customer', error: error.message });
+        res.json({
+          message: "Customer updated successfully",
+          data: result.value,
+        });
+      } catch (error) {
+        // You forgot to pass the 'error' object here
+        res
+          .status(500)
+          .json({ message: "Error updating customer", error: error.message });
       }
     });
-
-
 
     // blog-related api ======================================================================
     app.post("/addBlog", async (req, res) => {
@@ -365,10 +426,11 @@ async function run() {
       res.send(result);
     });
     app.get("/blogs/:email", async (req, res) => {
-
-      const result = await blogCollection.find({ email: req.params.email }).toArray()
-      res.send(result)
-    })
+      const result = await blogCollection
+        .find({ email: req.params.email })
+        .toArray();
+      res.send(result);
+    });
     app.get("/blog/:id", async (req, res) => {
       const id = req.params.id;
       const result = await blogCollection.findOne({ _id: new ObjectId(id) });
@@ -376,60 +438,61 @@ async function run() {
     });
 
     app.delete("/deleteBlog/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const result = await blogCollection.deleteOne(query);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     // service-related APIs============================================================================
-    app.post('/service', async (req, res) => {
-      const serviceData = req.body
-      const result = await serviceCollection.insertOne(serviceData)
-      res.send(result)
-    })
-    app.get('/service/:name', async (req, res) => {
-      const name = req.params.name
-      const query = { shopName: name }
-      const result = await serviceCollection.find(query).toArray()
-      res.send(result)
-    })
-    app.delete('/service/:id', async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await serviceCollection.deleteOne(query)
-      res.send(result)
-    })
-    app.get('/serviceDetails/:id', async (req, res) => {
-      const id = req.params.id
+    app.post("/service", async (req, res) => {
+      const serviceData = req.body;
+      const result = await serviceCollection.insertOne(serviceData);
+      res.send(result);
+    });
+    app.get("/service/:name", async (req, res) => {
+      const name = req.params.name;
+      const query = { shopName: name };
+      const result = await serviceCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.delete("/service/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await serviceCollection.deleteOne(query);
+      res.send(result);
+    });
+    app.get("/serviceDetails/:id", async (req, res) => {
+      const id = req.params.id;
 
-      const query = { _id: new ObjectId(id) }
-      const result = await serviceCollection.findOne(query)
-      res.send(result)
-    })
-
+      const query = { _id: new ObjectId(id) };
+      const result = await serviceCollection.findOne(query);
+      res.send(result);
+    });
 
     // Payment-related APIs============================================================================
-    app.post('/create-payment-intent', async (req, res) => {
+    app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
       const paymentIntent = await stripe.paymentIntents.create({
         amount,
-        currency: 'usd',
-        payment_method_types: ['card']
+        currency: "usd",
+        payment_method_types: ["card"],
       });
       res.send({
-        clientSecret: paymentIntent.client_secret
+        clientSecret: paymentIntent.client_secret,
       });
     });
 
-    app.get('/payments/:email', async (req, res) => {
+    app.get("/payments/:email", async (req, res) => {
       const { email } = req.params;
-      const pendingProduct = await productPaymentCollection.find({ sellerEmail: email }).toArray()
+      const pendingProduct = await productPaymentCollection
+        .find({ sellerEmail: email })
+        .toArray();
       res.send(pendingProduct);
     });
-    app.post('/payment', async (req, res) => {
-      const product = req.body;  // Get the single product object from the request body
+    app.post("/payment", async (req, res) => {
+      const product = req.body; // Get the single product object from the request body
       // console.log(product);
 
       try {
@@ -438,16 +501,20 @@ async function run() {
 
         // Extract productId and buyerEmail from the product
         const { productId, buyerEmail } = product;
-        console.log(productId, buyerEmail)
+        console.log(productId, buyerEmail);
         // Find the customer by their email
         let customer = await customerCollection.findOne({ email: buyerEmail });
         if (!customer) {
-          return res.status(404).json({ message: `User with email ${buyerEmail} not found.` });
+          return res
+            .status(404)
+            .json({ message: `User with email ${buyerEmail} not found.` });
         }
 
         // Check if the product exists in the customer's cart
         if (!customer.cart.includes(productId)) {
-          return res.status(400).json({ message: `Product ${productId} not found in ${buyerEmail}'s cart.` });
+          return res.status(400).json({
+            message: `Product ${productId} not found in ${buyerEmail}'s cart.`,
+          });
         }
 
         // Remove the product from the cart
@@ -458,71 +525,79 @@ async function run() {
         );
 
         if (updateResult.modifiedCount === 0) {
-          return res.status(500).json({ message: `Failed to remove product ${productId} from ${buyerEmail}'s cart.` });
+          return res.status(500).json({
+            message: `Failed to remove product ${productId} from ${buyerEmail}'s cart.`,
+          });
         }
 
         // Send a success response if everything went well
-        res.status(200).json({ message: 'Product inserted and cart updated successfully', result });
-
+        res.status(200).json({
+          message: "Product inserted and cart updated successfully",
+          result,
+        });
       } catch (error) {
-        console.error('Error processing payment or updating cart:', error);
-        res.status(500).json({ error: 'Failed to process payment and update cart' });
+        console.error("Error processing payment or updating cart:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to process payment and update cart" });
       }
     });
 
-
-
-
-    app.delete('/w/payment/:id', async (req, res) => {
-      const { id } = req.params;  // Get the product data from the request body
-      console.log(id)
-      const result = await productPaymentCollection.deleteOne({ _id: new ObjectId(id) })
-      res.send(result)
+    app.delete("/w/payment/:id", async (req, res) => {
+      const { id } = req.params; // Get the product data from the request body
+      console.log(id);
+      const result = await productPaymentCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
     });
-    const { ObjectId } = require('mongodb'); // Import ObjectId if not already imported
+    const { ObjectId } = require("mongodb"); // Import ObjectId if not already imported
 
     // Update API for product payment
-    app.patch('/payment/:id', async (req, res) => {
-      const { id } = req.params;  // Extract the product ID from the request parameters
-      const updateData = req.body;  // Get the update data from the request body
+    app.patch("/payment/:id", async (req, res) => {
+      const { id } = req.params; // Extract the product ID from the request parameters
+      const updateData = req.body; // Get the update data from the request body
 
       try {
         // Ensure that we have valid data to update
         if (!updateData || Object.keys(updateData).length === 0) {
-          return res.status(400).json({ message: 'No update data provided' });
+          return res.status(400).json({ message: "No update data provided" });
         }
 
         // Update the product in the collection
         const result = await productPaymentCollection.updateOne(
-          { _id: new ObjectId(id) },  // Filter by the product ID
+          { _id: new ObjectId(id) }, // Filter by the product ID
           {
             $set: {
-              ...updateData, sendToDelivery: true,
+              ...updateData,
+              sendToDelivery: true,
               isDelivered: false,
-            }
-          }        // Use the $set operator to update the specified fields
+            },
+          } // Use the $set operator to update the specified fields
         );
 
         // Send the response based on the result
         if (result.matchedCount === 0) {
-          return res.status(404).json({ message: 'Product not found' });
+          return res.status(404).json({ message: "Product not found" });
         }
 
-        res.status(200).json({ message: 'Product updated successfully', result });
+        res
+          .status(200)
+          .json({ message: "Product updated successfully", result });
       } catch (error) {
         console.error("Error updating product:", error);
-        res.status(500).json({ message: 'Failed to update product', error });
+        res.status(500).json({ message: "Failed to update product", error });
       }
     });
 
-    app.post('/paymentSSL', async (req, res) => {
+    app.post("/paymentSSL", async (req, res) => {
       const data = req.body;
       const trxId = new ObjectId().toString();
 
       // Prepare initial data for SSLCommerz
       const initialData = {
-        store_id: "super670a204485dde",  // Your store ID
-        store_passwd: "super670a204485dde@ssl",  // Your store password
+        store_id: "super670a204485dde", // Your store ID
+        store_passwd: "super670a204485dde@ssl", // Your store password
         total_amount: data.Amount,
         currency: "BDT",
         tran_id: trxId,
@@ -547,25 +622,27 @@ async function run() {
         product_category: "Test",
         product_profile: "general",
         shipping_method: "NO",
-        multi_card_name: "VISA,MASTER,AMEX",  // Updated for supporting card payments
+        multi_card_name: "VISA,MASTER,AMEX", // Updated for supporting card payments
         value_a: "ref001_A",
         value_b: "ref002_B",
         value_c: "ref003_C",
-        value_d: "ref004_D"
+        value_d: "ref004_D",
       };
 
       try {
         // Update product details for each productId
         for (let id of data.productId) {
-          const product = await productsCollection.findOne({ _id: new ObjectId(id) });
-          const { _id, ...restOfProduct } = product
+          const product = await productsCollection.findOne({
+            _id: new ObjectId(id),
+          });
+          const { _id, ...restOfProduct } = product;
           const updateData = {
             ...restOfProduct,
             buyerEmail: data.buyerEmail,
             paymentMethod: data.paymentMethod,
             isReceived: false,
             paymentStatus: "pending", // Mark as pending payment
-            transactionId: trxId // Add transaction ID
+            transactionId: trxId, // Add transaction ID
           };
 
           // Update the product in the database
@@ -574,12 +651,12 @@ async function run() {
 
         // After updating the product details, make the payment request to SSLCommerz
         const response = await axios.post(
-          'https://sandbox.sslcommerz.com/gwprocess/v4/api.php',
-          qs.stringify(initialData),  // Convert to x-www-form-urlencoded
+          "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+          qs.stringify(initialData), // Convert to x-www-form-urlencoded
           {
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'  // Set correct headers
-            }
+              "Content-Type": "application/x-www-form-urlencoded", // Set correct headers
+            },
           }
         );
 
@@ -587,27 +664,31 @@ async function run() {
         res.json({
           message: "Payment success and product status updated",
           sslCommerzResponse: response.data,
-          transactionId: trxId
+          transactionId: trxId,
         });
-
       } catch (error) {
-        console.error("Error in SSLCommerz request or updating products:", error.response ? error.response.data : error.message);
+        console.error(
+          "Error in SSLCommerz request or updating products:",
+          error.response ? error.response.data : error.message
+        );
         res.status(500).json({ error: "Payment request failed" });
       }
     });
 
-
-
-    app.post('/success-payment', async (req, res) => {
+    app.post("/success-payment", async (req, res) => {
       const successData = req.body;
-
+      console.log(successData);
 
       try {
         // Find all products with the same transactionId
-        const products = await productPaymentCollection.find({ transactionId: successData.tran_id }).toArray();
+        const products = await productPaymentCollection
+          .find({ transactionId: successData.tran_id })
+          .toArray();
 
         if (products.length === 0) {
-          return res.status(404).send('No products found for this transaction.');
+          return res
+            .status(404)
+            .send("No products found for this transaction.");
         }
 
         // Loop through each product and update the payment status
@@ -623,15 +704,14 @@ async function run() {
 
         // Redirect to the website page with the webName
         // res.redirect(`http://localhost:5173/w/${wedName}`);
-        res.redirect(`https://super-box-d647e.web.app/w/${wedName}`);
+        res.redirect(`http://localhost:5173/w/${wedName}`);
       } catch (error) {
-        console.error('Error updating payment status:', error);
-        res.status(500).send('Internal Server Error');
+        console.error("Error updating payment status:", error);
+        res.status(500).send("Internal Server Error");
       }
     });
 
-
-    app.post('/failed', async (req, res) => {
+    app.post("/failed", async (req, res) => {
       const failedData = req.body;
       console.log(failedData);
 
@@ -644,7 +724,7 @@ async function run() {
       res.status(200).json({ message: "Payment failed", data: failedData });
     });
 
-    app.post('/cancel', async (req, res) => {
+    app.post("/cancel", async (req, res) => {
       const cancelData = req.body;
       console.log(cancelData);
 
@@ -657,17 +737,13 @@ async function run() {
       res.status(200).json({ message: "Payment cancelled", data: cancelData });
     });
 
-
-
-
-
-    app.get('/transaction', async (req, res) => {
+    app.get("/transaction", async (req, res) => {
       const paymentResult = await paymentCollection.find().toArray();
       res.send(paymentResult);
     });
 
     // cart related api =============================================================
-    app.post('/cart/:id/:email', async (req, res) => {
+    app.post("/cart/:id/:email", async (req, res) => {
       try {
         const { id, email } = req.params;
         let user = await customerCollection.findOne({ email: email });
@@ -677,7 +753,9 @@ async function run() {
 
         const itemExists = user.cart.includes(id);
         if (itemExists) {
-          return res.status(400).json({ message: "Item already in cart", cart: user.cart });
+          return res
+            .status(400)
+            .json({ message: "Item already in cart", cart: user.cart });
         }
 
         const result = await customerCollection.updateOne(
@@ -685,18 +763,19 @@ async function run() {
           { $push: { cart: id } }
         );
 
-
         if (result.modifiedCount === 1) {
-          return res.status(200).json({ message: "Item added to cart", cart: [...user.cart, id] });
+          return res
+            .status(200)
+            .json({ message: "Item added to cart", cart: [...user.cart, id] });
         } else {
           return res.status(500).json({ message: "Failed to update cart" });
         }
       } catch (error) {
-
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        res
+          .status(500)
+          .json({ message: "Internal server error", error: error.message });
       }
     });
-
 
     app.get("/cart/:email/:shopName", async (req, res) => {
       try {
@@ -712,13 +791,15 @@ async function run() {
         const cartItems = user.cart; // Array of product IDs from the cart
 
         if (!cartItems.length) {
-          return res.status(200).json({ message: "Cart is empty", products: [] });
+          return res
+            .status(200)
+            .json({ message: "Cart is empty", products: [] });
         }
 
         // Query the products collection for products in the cart that match the shopName
         const query = {
-          _id: { $in: cartItems.map(id => new ObjectId(id)) }, // Match product IDs in the cart
-          shopName: shopName // Match the specific shopName
+          _id: { $in: cartItems.map((id) => new ObjectId(id)) }, // Match product IDs in the cart
+          shopName: shopName, // Match the specific shopName
         };
 
         const products = await productsCollection.find(query).toArray();
@@ -726,7 +807,9 @@ async function run() {
         // Send the matching products as the response
         res.status(200).json({ products });
       } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        res
+          .status(500)
+          .json({ message: "Internal server error", error: error.message });
       }
     });
     app.delete("/cart/:id/:email", async (req, res) => {
@@ -743,9 +826,7 @@ async function run() {
           return res.status(404).json({ message: "Cart is empty" });
         }
 
-        const updatedCart = customer.cart.filter(
-          (item) => item !== id
-        );
+        const updatedCart = customer.cart.filter((item) => item !== id);
 
         const result = await customerCollection.updateOne(
           { email: email },
@@ -756,26 +837,40 @@ async function run() {
           .status(200)
           .json({ message: "Item removed from cart", products: updatedCart });
       } catch (error) {
-        return res.status(500).json({ message: "Error deleting item from cart" });
+        return res
+          .status(500)
+          .json({ message: "Error deleting item from cart" });
       }
     });
 
-
     // feedback related api ==================================================
-    app.post('/feedback', async (req, res) => {
-      const data = req.body
+    app.post("/feedback", async (req, res) => {
+      const data = req.body;
 
-      const result = await feedbackCollection.insertOne({ ...data, status: 'pending' });
-      res.send(result)
-    })
-    app.get('/feedback', async (req, res) => {
+      const result = await feedbackCollection.insertOne({
+        ...data,
+        status: "pending",
+      });
+      res.send(result);
+    });
+    app.get("/feedback", async (req, res) => {
       const feedbacks = await feedbackCollection.find().toArray();
       res.send(feedbacks);
-    })
+    });
 
     // massage related api =======================================================
-    app.post('/bookService', async (req, res) => {
-      const { userEmail, serviceId, serviceName, shopName, paymentMethod, transactionId, date, time, serviceCost } = req.body;
+    app.post("/bookService", async (req, res) => {
+      const {
+        userEmail,
+        serviceId,
+        serviceName,
+        shopName,
+        paymentMethod,
+        transactionId,
+        date,
+        time,
+        serviceCost,
+      } = req.body;
 
       try {
         // Check if the user has an unfinished booking for the same service
@@ -803,7 +898,7 @@ async function run() {
           time,
           paymentMethod,
           serviceCost,
-          status: 'booked',
+          status: "booked",
           isFinished: false,
           createdAt: new Date(),
         };
@@ -818,28 +913,38 @@ async function run() {
         });
       } catch (error) {
         console.error("Error booking service:", error);
-        res.status(500).json({ message: "Error booking service", error: error.message });
+        res
+          .status(500)
+          .json({ message: "Error booking service", error: error.message });
       }
     });
 
-
-
-    // service booking api 
-    app.post('/bookService', async (req, res) => {
-      const { userEmail, serviceId, serviceName, shopName, paymentMethod, transactionId, date, time, serviceCost } = req.body;
+    // service booking api
+    app.post("/bookService", async (req, res) => {
+      const {
+        userEmail,
+        serviceId,
+        serviceName,
+        shopName,
+        paymentMethod,
+        transactionId,
+        date,
+        time,
+        serviceCost,
+      } = req.body;
 
       try {
         // Check if the user has an unfinished booking for the same service
         const existingBooking = await bookedServiceCollection.findOne({
           userEmail,
 
-
           isFinished: false, // Only check unfinished bookings
         });
 
         if (existingBooking) {
           return res.status(400).json({
-            message: "You have already booked this service and it is not yet finished.",
+            message:
+              "You have already booked this service and it is not yet finished.",
           });
         }
 
@@ -855,7 +960,7 @@ async function run() {
           time,
           paymentMethod,
           serviceCost,
-          status: 'booked',
+          status: "booked",
           isFinished: false,
           createdAt: new Date(),
         };
@@ -874,12 +979,9 @@ async function run() {
       }
     });
 
-
-    app.get('/bookService', async (req, res) => {
+    app.get("/bookService", async (req, res) => {
       const key = req.query.key;
       const value = req.query.value;
-
-
 
       if (key && value) {
         // Construct a dynamic query object
@@ -887,12 +989,13 @@ async function run() {
         const result = await bookedServiceCollection.find(query).toArray();
         res.json(result);
       } else {
-        res.status(400).send("Please provide both 'key' and 'value' as query parameters.");
+        res
+          .status(400)
+          .send("Please provide both 'key' and 'value' as query parameters.");
       }
-
     });
 
-    app.put('/bookService/:id', async (req, res) => {
+    app.put("/bookService/:id", async (req, res) => {
       const { id } = req.params;
 
       try {
@@ -902,12 +1005,14 @@ async function run() {
         // Update the document with the provided id
         const result = await bookedServiceCollection.updateOne(
           { _id: objectId }, // Query to find the document by its _id
-          { $set: req.body }  // Update operation using the request body
+          { $set: req.body } // Update operation using the request body
         );
 
         // Check if any document was modified
         if (result.modifiedCount === 0) {
-          res.status(404).json({ message: "No document found or no changes made" });
+          res
+            .status(404)
+            .json({ message: "No document found or no changes made" });
         } else {
           res.json({ message: "Service booking updated successfully", result });
         }
@@ -917,8 +1022,7 @@ async function run() {
       }
     });
 
-
-    app.get('/productDelivery', async (req, res) => {
+    app.get("/productDelivery", async (req, res) => {
       try {
         // Fetch all products from the productPaymentCollection
         const products = await productPaymentCollection.find({}).toArray();
@@ -928,25 +1032,30 @@ async function run() {
         const webInfos = await webCollection.find({}).toArray();
 
         // Enrich products with customer and web info
-        const enrichedProducts = products.map(product => {
+        const enrichedProducts = products.map((product) => {
           // Find the matching customer and web info
-          const customer = customers.find(c => c.email === product.buyerEmail);
-          const webInfo = webInfos.find(w => w.email === product.sellerEmail);
+          const customer = customers.find(
+            (c) => c.email === product.buyerEmail
+          );
+          const webInfo = webInfos.find((w) => w.email === product.sellerEmail);
 
           // Return the enriched product
           return {
             ...product,
-            customerPhoneNumber: customer?.phoneNumber || "phone number not found",
-            customerAddress: customer?.address || 'Address not found',
-            websiteDetails: webInfo?.sellerInfo || 'Website details not found',
+            customerPhoneNumber:
+              customer?.phoneNumber || "phone number not found",
+            customerAddress: customer?.address || "Address not found",
+            websiteDetails: webInfo?.sellerInfo || "Website details not found",
           };
         });
 
         // Send the enriched products as the response
         res.json(enrichedProducts);
       } catch (error) {
-        console.error('Error fetching product delivery data:', error);
-        res.status(500).json({ error: 'Failed to fetch product delivery data' });
+        console.error("Error fetching product delivery data:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to fetch product delivery data" });
       }
     });
 
@@ -981,33 +1090,37 @@ async function run() {
         await deliveredCollection.insertOne(updatedOrder);
 
         // Optionally: Update the original collection to mark it as delivered
-        await productPaymentCollection.updateOne(query, { $set: { isDelivered: true } });
+        await productPaymentCollection.updateOne(query, {
+          $set: { isDelivered: true },
+        });
 
-        res.status(200).send({ message: "Order sent to delivery successfully", updatedOrder });
+        res.status(200).send({
+          message: "Order sent to delivery successfully",
+          updatedOrder,
+        });
       } catch (error) {
         console.error("Error sending order to delivery:", error);
-        res.status(500).send({ message: "Failed to send order to delivery", error });
+        res
+          .status(500)
+          .send({ message: "Failed to send order to delivery", error });
       }
     });
 
-
-
-
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
 }
 
-
-
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-  res.send('Super box server in running')
-})
+app.get("/", (req, res) => {
+  res.send("Super box server in running");
+});
 
 app.listen(port, () => {
-  console.log(`Super box is running on port ${port}`)
-})
+  console.log(`Super box is running on port ${port}`);
+});
